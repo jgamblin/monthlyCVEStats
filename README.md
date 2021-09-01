@@ -8,10 +8,11 @@ Please feel free to open a PR or Issue with any questions or impromvements.
 
 ![CVE Graph](2021/2021.jpg "CVE Graph")
 
-CVEs: **7896**
-CVEs Published Per Day: **37.0**
+CVEs: **9536**
+
+CVEs Published Per Day: **39.0**
 
 ![CVSS Graph](2021/2021CVSS.jpg "CVSS Graph")
 
 Average CVSS Score:
-**7.03**
+**7.12**
