@@ -4,7 +4,7 @@ This repository will contain the Jupyter notebooks I use to track CVE data point
 
 Please feel free to open a PR or Issue with any questions or impromvements.
 
-## CVE Data As Of The 1st of July 2022
+## CVE Data As Of The 1st of August 2022
 
 Total Number of CVEs: **181244**<br/>
 Average CVEs Per Day: **21.97**<br/>
