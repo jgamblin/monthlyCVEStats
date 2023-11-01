@@ -6,8 +6,8 @@ Please feel free to open a PR or Issue with any questions or impromvements.
 
 ## CVE Data As Of The 1st of September 2023
 
-Total Number of CVEs: **213,038**<br/>
-Average CVEs Per Day: **24.56**<br/>
+Total Number of CVEs: **215,747**<br/>
+Average CVEs Per Day: **24.78**<br/>
 Average CVSS Score: **7.19**<br/>
 
 ![CVE Graph](All.jpg "CVE Graph")<br/>
