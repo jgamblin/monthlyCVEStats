@@ -6,9 +6,9 @@ Please feel free to open a PR or Issue with any questions or improvements.
 
 ## CVE Data As Of The 1st of June 2024
 
-Total Number of CVEs: **252,361**<br/>
-Average CVEs Per Day: **28.3**<br/>
-Average CVSS Score: **7.11**<br/>
+Total Number of CVEs: **255,511**<br/>
+Average CVEs Per Day: **28.56**<br/>
+Average CVSS Score: **7.1**<br/>
 
 ![CVE Graph](All.jpg "CVE Graph")<br/>
 ![CVSS Graph](AllCVSS.jpg "CVSS Graph")
