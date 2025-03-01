@@ -132,4 +132,5 @@ dmypy.json
 */jsondata
 jsondata
 *.json
+*.jsonl
 *.json.zip
