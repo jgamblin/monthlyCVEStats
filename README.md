@@ -19,3 +19,18 @@ To run these notebooks locally, you will need to have Python and Jupyter install
 
 ```bash
 pip install -r requirements.txt
+```
+
+## Usage
+
+To use these notebooks:
+
+1. Download or clone this repository.
+2. Open any notebook in Jupyter, VS Code, or Google Colab.
+3. Ensure you have the latest NVD data by running the provided data download scripts or following the instructions in each notebook.
+4. Run the cells sequentially to generate the latest CVE statistics and visualizations.
+
+**Data Updates:**
+- The data is updated as of the 1st of each month. To refresh, rerun the download scripts and restart the notebook.
+
+For questions or improvements, please open an Issue or PR.
