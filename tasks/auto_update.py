@@ -26,53 +26,73 @@ def update_text(content, last_month, this_month):
     print(f"Debug: last_month = {last_month} (month {last_month.month})")
     print(f"Debug: this_month = {this_month} (month {this_month.month})")
     
+    # Handle the new configuration format with simple variable updates
+    # Update ANALYSIS_YEAR
+    content = re.sub(
+        r'ANALYSIS_YEAR = \d{4}',
+        f'ANALYSIS_YEAR = {this_month.year}',
+        content
+    )
+    
+    # Update ANALYSIS_MONTH
+    content = re.sub(
+        r'ANALYSIS_MONTH = \d+',
+        f'ANALYSIS_MONTH = {this_month.month}',
+        content
+    )
+    
+    # Update MONTH_NAME
+    content = re.sub(
+        r'MONTH_NAME = "[^"]*"',
+        f'MONTH_NAME = "{MONTHS[this_month.month-1]}"',
+        content
+    )
+    
+    # Update markdown headers
+    content = re.sub(
+        rf"## {MONTHS[last_month.month-1]} {last_month.year} CVE Data",
+        f"## {MONTHS[this_month.month-1]} {this_month.year} CVE Data",
+        content
+    )
+    
+    # Legacy format fallbacks for older notebooks
     # Replace "May 2025" with "June 2025", etc.
     content = re.sub(
         rf"{MONTHS[last_month.month-1]} {last_month.year}",
         f"{MONTHS[this_month.month-1]} {this_month.year}",
         content
     )
-    # Replace "2025-05-01" with "2025-06-01", etc.
-    content = re.sub(
-        rf"{last_month.year}-{last_month.month:02d}-01",
-        f"{this_month.year}-{this_month.month:02d}-01",
-        content
-    )
-    # Replace "2025-06-01" (end date) with next month's first day
-    next_month = (this_month.replace(day=28) + timedelta(days=4)).replace(day=1)
-    print(f"Debug: next_month = {next_month} (month {next_month.month})")
-    content = re.sub(
-        rf"{last_month.year}-{last_month.month+1:02d}-01",
-        f"{this_month.year}-{this_month.month+1:02d}-01",
-        content
-    )
-    # Replace pd.Timestamp format with more specific patterns
-    # Replace startdate line: startdate = pd.Timestamp('2025-05-01') -> startdate = pd.Timestamp('2025-06-01')
+    
+    # Replace legacy pd.Timestamp patterns - be more specific about start/end
     content = re.sub(
         rf"startdate = pd\.Timestamp\('{last_month.year}-{last_month.month:02d}-01'\)",
         f"startdate = pd.Timestamp('{this_month.year}-{this_month.month:02d}-01')",
         content
     )
-    # Replace enddate line: enddate = pd.Timestamp('2025-06-01') -> enddate = pd.Timestamp('2025-07-01')
-    next_month = (this_month.replace(day=28) + timedelta(days=4)).replace(day=1)
-    content = re.sub(
-        rf"enddate = pd\.Timestamp\('{this_month.year}-{this_month.month:02d}-01'\)",
-        f"enddate = pd.Timestamp('{next_month.year}-{next_month.month:02d}-01')",
-        content
-    )
-    # Replace date() constructor format with more specific patterns
-    # Replace startdate line: startdate = date(2025, 5, 1) -> startdate = date(2025, 6, 1)
+    
+    # Replace legacy date() patterns - be more specific
     content = re.sub(
         rf"startdate = date\({last_month.year}, {last_month.month}, 1\)",
         f"startdate = date({this_month.year}, {this_month.month}, 1)",
         content
     )
-    # Replace enddate line: enddate = date(2025, 6, 1) -> enddate = date(2025, 7, 1)
+    
+    # Handle end dates separately - they should point to next month
+    next_month = (this_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    
+    # Update end date patterns
+    content = re.sub(
+        rf"enddate = pd\.Timestamp\('{this_month.year}-{this_month.month:02d}-01'\)",
+        f"enddate = pd.Timestamp('{next_month.year}-{next_month.month:02d}-01')",
+        content
+    )
+    
     content = re.sub(
         rf"enddate\s*=\s*date\({this_month.year}, {this_month.month}, 1\)",
         f"enddate  = date({next_month.year}, {next_month.month}, 1)",
         content
     )
+    
     # Replace folder/file names if needed
     content = content.replace(month_folder_name(last_month), month_folder_name(this_month))
     return content
