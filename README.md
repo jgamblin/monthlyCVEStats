@@ -4,11 +4,11 @@ This repository contains the Jupyter notebooks I use to track CVE data points fr
 
 Please feel free to open a PR or Issue with any questions or improvements.
 
-## CVE Data As Of The 1st of September, 2025
+## CVE Data As Of The 1st of October, 2025
 
-Total Number of CVEs: **291,871**<br/>
-Average CVEs Per Day: **31.13**<br/>
-Average CVSS Score: **6.88**<br/>
+Total Number of CVEs: **296,151**<br/>
+Average CVEs Per Day: **31.49**<br/>
+Average CVSS Score: **6.87**<br/>
 
 ![CVE Graph](all.png "CVE Graph")<br/>
 ![CVSS Graph](cvss.png "CVSS Graph")
