@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+0#!/usr/bin/env python3
 """
 Demo script showing how the new date configuration format works.
 This makes monthly notebook updates much more reliable.
