@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 # Set your base directory relative to this script's location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)  # Go up one level from tasks/ to repo root
-BASE_DIR = os.path.join(REPO_ROOT, "2025")
+CURRENT_YEAR = datetime.now().year
+BASE_DIR = os.path.join(REPO_ROOT, str(CURRENT_YEAR))
 MONTHS = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"

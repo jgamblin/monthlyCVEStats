@@ -1,6 +1,6 @@
 # 📊 Monthly CVE Statistics
 
-[![Data Updated](https://img.shields.io/badge/Data%20Updated-December%202025-blue)](https://nvd.nist.gov/)
+[![Data Updated](https://img.shields.io/badge/Data%20Updated-January%202026-blue)](https://nvd.nist.gov/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![NVD](https://img.shields.io/badge/Source-NVD-orange)](https://nvd.nist.gov/)
 
@@ -10,13 +10,13 @@ This repository provides monthly analysis of vulnerability trends, CVSS score di
 
 ---
 
-## 🔥 Current Statistics (December 1, 2025)
+## 🔥 Current Statistics (Jan 1, 2026)
 
 | Metric | Value |
 |--------|-------|
-| **Total CVEs** | 303,483 |
-| **Average CVEs/Day** | 32.06 |
-| **Average CVSS Score** | 6.85 |
+| **Total CVEs** | 308,943 |
+| **Average CVEs/Day** | 32.53 |
+| **Average CVSS Score** | 6.84 |
 
 ### CVE Publication Trends
 ![CVE Graph](all.png "Historical CVE Publication by Year")
@@ -37,12 +37,13 @@ monthlyCVEStats/
 │   ├── auto_update.py      # Automated monthly notebook creation
 │   ├── download_data.py    # NVD data downloader
 │   └── test_auto_update.py # Test suite
-├── 2025/                   # 2025 monthly analyses
-│   ├── 2025.ipynb          # Year overview
-│   ├── 2025-YOY-Graph-Days.ipynb  # Year-over-year comparison
+├── 2026/                   # 2026 monthly analyses
+│   ├── 2026.ipynb          # Year overview
+│   ├── 2026-YOY-Graph-Days.ipynb  # Year-over-year comparison
 │   ├── January/
 │   ├── February/
 │   └── ...
+├── 2025/                   # 2025 monthly analyses
 ├── 2024/                   # 2024 monthly analyses
 ├── 2023/                   # 2023 monthly analyses
 └── ...
@@ -170,4 +171,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <p align="center">
   <i>Tracking vulnerabilities, one CVE at a time.</i>
+</p>
 </p>
