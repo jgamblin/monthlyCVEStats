@@ -3,3 +3,5 @@ numpy
 matplotlib
 calplot
 ipython
+seaborn
+jinja2

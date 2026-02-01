@@ -14,8 +14,8 @@ This repository provides monthly analysis of vulnerability trends, CVSS score di
 
 | Metric | Value |
 |--------|-------|
-| **Total CVEs** | 308,943 |
-| **Average CVEs/Day** | 32.53 |
+| **Total CVEs** | 313,265 |
+| **Average CVEs/Day** | 32.88 |
 | **Average CVSS Score** | 6.84 |
 
 ### CVE Publication Trends
