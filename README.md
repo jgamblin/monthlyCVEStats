@@ -1,8 +1,9 @@
 # 📊 Monthly CVE Statistics
 
-[![Data Updated](https://img.shields.io/badge/Data%20Updated-January%202026-blue)](https://nvd.nist.gov/)
+[![Data Updated](https://img.shields.io/badge/Data%20Updated-February%202026-blue)](https://nvd.nist.gov/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![NVD](https://img.shields.io/badge/Source-NVD-orange)](https://nvd.nist.gov/)
+[![Pandas](https://img.shields.io/badge/Pandas-3.x-blue)](https://pandas.pydata.org/)
 
 > **Comprehensive tracking and visualization of CVE (Common Vulnerabilities and Exposures) data from the National Vulnerability Database (NVD).**
 
@@ -14,8 +15,8 @@ This repository provides monthly analysis of vulnerability trends, CVSS score di
 
 | Metric | Value |
 |--------|-------|
-| **Total CVEs** | 313,265 |
-| **Average CVEs/Day** | 32.88 |
+| **Total CVEs** | 308,943 |
+| **Average CVEs/Day** | 32.53 |
 | **Average CVSS Score** | 6.84 |
 
 ### CVE Publication Trends
@@ -64,12 +65,14 @@ monthlyCVEStats/
 git clone https://github.com/jgamblin/monthlyCVEStats.git
 cd monthlyCVEStats
 
-# Install dependencies
+# Install dependencies (requires Pandas 3+ and PyArrow)
 pip install -r requirements.txt
 
-# Download the latest NVD data
+# Download the latest NVD data (~1.4 GB, supports resume on interruption)
 python tasks/download_data.py
 ```
+
+> **Note:** The data download is ~1.4 GB. The download script shows a progress bar and supports automatic resume if interrupted.
 
 ### Running Notebooks
 
@@ -126,6 +129,16 @@ This script:
 2. Updates all date configurations
 3. Renames files appropriately
 4. Executes the new notebook
+
+---
+
+## ⚡ Performance
+
+This project uses **Pandas 3** with the **PyArrow** backend for significantly faster data processing:
+
+- **PyArrow-backed strings**: 2-10x faster string operations (filtering, splitting, searching)
+- **Copy-on-Write**: Reduced memory usage through lazy data copying
+- **1 MB streaming chunks**: Faster data downloads with progress tracking and resume support
 
 ---
 

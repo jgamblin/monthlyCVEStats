@@ -1,4 +1,5 @@
-pandas
+pandas>=3.0.0
+pyarrow
 numpy
 matplotlib
 calplot
