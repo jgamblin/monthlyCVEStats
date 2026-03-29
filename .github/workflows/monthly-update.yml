@@ -38,6 +38,10 @@ jobs:
       - name: Verify Central Time execution
         run: python src/utils/timezone_check.py
       
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      
       - name: Configure Git
         run: |
           git config --local user.email "github-actions@github.com"
