@@ -52,6 +52,9 @@ jobs:
       - name: Generate reports
         run: python -m src.cli.main generate-reports
       
+      - name: Generate YTD growth report and visualizations
+        run: python -m src.cli.main generate-ytd-report
+      
       - name: Update README with statistics
         run: python -m src.cli.main update-readme-stats
       

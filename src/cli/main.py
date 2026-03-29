@@ -19,7 +19,9 @@ from src.data.downloader import NVDDownloader
 from src.data.processor import DataProcessor
 from src.analysis.statistics import StatisticsAnalyzer
 from src.analysis.trends import TrendAnalyzer
+from src.analysis.ytd_growth import YTDAnalyzer
 from src.reports.generator import ReportGenerator
+from src.reports.ytd_visualizer import YTDVisualizer
 
 
 app = typer.Typer(
@@ -193,6 +195,85 @@ def update_readme_stats() -> None:
     else:
         logger.error("✗ Failed to update README")
         sys.exit(1)
+
+
+@app.command()
+def generate_ytd_report() -> None:
+    """Generate YTD (Year-to-Date) growth report with visualizations."""
+    logger.info("Generating YTD growth report...")
+    Config.ensure_directories()
+
+    # Analyze YTD growth
+    ytd_analyzer = YTDAnalyzer(Config.NVD_DATA_FILE)
+    analysis = ytd_analyzer.analyze_ytd()
+
+    if not analysis["current_year_data"]:
+        logger.warning("No CVE data found for YTD analysis")
+        return
+
+    logger.info(f"YTD Analysis: {analysis['statistics']['current_ytd_total']} CVEs")
+
+    # Create visualizations
+    output_dir = Config.OUTPUT_DIR / str(analysis["current_year"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    visualizer = YTDVisualizer(output_dir)
+
+    # Create all chart formats
+    logger.info("Creating YTD growth charts...")
+    visualizer.create_ytd_chart(
+        analysis["current_cumulative"],
+        analysis["previous_cumulative"],
+        analysis["current_year"],
+        dark_mode=True,
+    )
+
+    visualizer.create_ytd_chart(
+        analysis["current_cumulative"],
+        analysis["previous_cumulative"],
+        analysis["current_year"],
+        dark_mode=False,
+    )
+
+    visualizer.create_square_chart(
+        analysis["current_cumulative"],
+        analysis["previous_cumulative"],
+        analysis["current_year"],
+        dark_mode=True,
+    )
+
+    visualizer.create_square_chart(
+        analysis["current_cumulative"],
+        analysis["previous_cumulative"],
+        analysis["current_year"],
+        dark_mode=False,
+    )
+
+    visualizer.create_yoy_comparison(
+        analysis["current_year"],
+        analysis["previous_year"],
+        analysis["statistics"]["current_ytd_total"],
+        analysis["statistics"]["previous_ytd_total"],
+        analysis["statistics"]["yoy_percent"],
+    )
+
+    # Generate summary text
+    logger.info("Generating summary text for social posts...")
+    summary_text = ytd_analyzer.get_summary_text(analysis)
+
+    # Save summary to file
+    summary_file = output_dir / "YTD_SUMMARY.txt"
+    summary_file.write_text(summary_text)
+    logger.info(f"✓ Summary saved to {summary_file}")
+
+    # Print summary for user
+    logger.info("\n" + "=" * 70)
+    logger.info("YTD GROWTH REPORT")
+    logger.info("=" * 70)
+    logger.info(summary_text)
+    logger.info("=" * 70)
+
+    logger.info(f"✓ YTD report generated in {output_dir}")
 
 
 def generate_reports_internal(year: int, month: int, df, analysis_results: dict) -> None:
