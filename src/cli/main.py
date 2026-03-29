@@ -262,7 +262,7 @@ def generate_ytd_report() -> None:
     summary_text = ytd_analyzer.get_summary_text(analysis)
 
     # Save summary to file
-    summary_file = output_dir / "YTD_SUMMARY.txt"
+    summary_file = output_dir / "post.txt"
     summary_file.write_text(summary_text)
     logger.info(f"✓ Summary saved to {summary_file}")
 
