@@ -1,29 +1,28 @@
 # 📊 Monthly CVE Statistics
 
-[![Data Updated](https://img.shields.io/badge/Data%20Updated-February%202026-blue)](https://nvd.nist.gov/)
+[![Data Updated](https://img.shields.io/badge/Data%20Updated-March 29, 2026-blue)](https://nvd.nist.gov/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![NVD](https://img.shields.io/badge/Source-NVD-orange)](https://nvd.nist.gov/)
-[![Pandas](https://img.shields.io/badge/Pandas-3.x-blue)](https://pandas.pydata.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
+[![Automated](https://img.shields.io/badge/Automated-Monthly-brightgreen)](https://github.com/jgamblin/monthlyCVEStats/actions)
 
-> **Comprehensive tracking and visualization of CVE (Common Vulnerabilities and Exposures) data from the National Vulnerability Database (NVD).**
+> **Comprehensive tracking and analysis of CVE (Common Vulnerabilities and Exposures) data from the National Vulnerability Database (NVD).**
 
-This repository provides monthly analysis of vulnerability trends, CVSS score distributions, CNA (CVE Numbering Authority) statistics, and CWE (Common Weakness Enumeration) patterns. All data is sourced directly from [NIST's National Vulnerability Database](https://nvd.nist.gov/).
+This repository provides **fully automated monthly analysis** of vulnerability trends, CVSS score distributions, CNA (CVE Numbering Authority) statistics, and CWE (Common Weakness Enumeration) patterns. All data is sourced directly from [NIST's National Vulnerability Database](https://nvd.nist.gov/).
+
+Reports are **generated automatically on the 1st of each month at 7:00 AM Central Time** via GitHub Actions.
 
 ---
 
-## 🔥 Current Statistics (March 1st, 2026)
+## 🔥 Current Statistics (March 29, 2026)
 
 | Metric | Value |
 |--------|-------|
-| **Total CVEs** | 317,861 |
-| **Average CVEs/Day** | 33.26 |
-| **Average CVSS Score** | 6.84 |
+| **Total CVEs** | 4,415 |
+| **Average CVEs/Day** | 147.17 |
+| **Average CVSS Score** | 6.57 |
 
-### CVE Publication Trends
-![CVE Graph](all.png "Historical CVE Publication by Year")
-
-### CVSS Score Distribution
-![CVSS Graph](cvss.png "CVSS Score Distribution")
+> **Note:** Statistics are automatically updated every month. See [latest reports](outputs/) for detailed analysis.
 
 ---
 
@@ -31,23 +30,42 @@ This repository provides monthly analysis of vulnerability trends, CVSS score di
 
 ```
 monthlyCVEStats/
-├── AllData.ipynb           # Complete historical CVE analysis
+├── src/                         # Core Python application
+│   ├── config.py               # Configuration management
+│   ├── data/
+│   │   ├── downloader.py       # NVD data downloader (resume-capable)
+│   │   └── processor.py        # Data processor & flattening
+│   ├── analysis/
+│   │   ├── statistics.py       # CVSS, CNA, CWE analysis
+│   │   └── trends.py           # YoY and growth analysis
+│   ├── reports/
+│   │   └── generator.py        # Report generation (MD, JSON, CSV)
+│   ├── cli/
+│   │   └── main.py             # Typer CLI interface
+│   └── utils/
+│       ├── logging.py          # Logging configuration
+│       └── timezone_check.py   # Timezone verification
+├── tests/
+│   └── test_config.py          # Unit tests
+├── outputs/                     # Generated reports (auto-updated)
+│   ├── 2025/
+│   │   ├── January/
+│   │   │   ├── January.md
+│   │   │   └── January.json
+│   │   └── June/
+│   │       ├── June.md
+│   │       └── June.json
+│   └── 2026/
 ├── data/
-│   └── nvd.jsonl           # NVD data (download required)
-├── tasks/
-│   ├── auto_update.py      # Automated monthly notebook creation
-│   ├── download_data.py    # NVD data downloader
-│   └── test_auto_update.py # Test suite
-├── 2026/                   # 2026 monthly analyses
-│   ├── 2026.ipynb          # Year overview
-│   ├── 2026-YOY-Graph-Days.ipynb  # Year-over-year comparison
-│   ├── January/
-│   ├── February/
-│   └── ...
-├── 2025/                   # 2025 monthly analyses
-├── 2024/                   # 2024 monthly analyses
-├── 2023/                   # 2023 monthly analyses
-└── ...
+│   └── nvd.jsonl               # NVD data (auto-downloaded)
+├── archive/                     # Legacy notebooks (2021-2026)
+│   ├── 2021/ ... 2026/
+│   └── notebooks/
+├── .github/workflows/          # GitHub Actions automation
+│   ├── monthly-update.yml      # 1st of month at 7 AM Central
+│   ├── tests.yml               # PR & push testing
+│   └── data-sync.yml           # Weekly data refresh
+└── requirements.txt            # Python dependencies
 ```
 
 ---
@@ -56,89 +74,133 @@ monthlyCVEStats/
 
 ### Prerequisites
 - Python 3.10+
-- Jupyter Notebook or VS Code with Jupyter extension
+- pip or poetry for dependency management
 
-### Installation
+### Installation & Local Testing
 
 ```bash
 # Clone the repository
 git clone https://github.com/jgamblin/monthlyCVEStats.git
 cd monthlyCVEStats
 
-# Install dependencies (requires Pandas 3+ and PyArrow)
+# Install dependencies
 pip install -r requirements.txt
 
-# Download the latest NVD data (~1.4 GB, supports resume on interruption)
-python tasks/download_data.py
+# Download the latest NVD data (~1.3 GB, supports resume on interruption)
+python -m src.cli.main download-data
+
+# Run local analysis for a specific month
+python -m src.cli.main generate-reports --year 2025 --month 1
+
+# Validate the entire pipeline
+python -m src.cli.main validate
 ```
 
-> **Note:** The data download is ~1.4 GB. The download script shows a progress bar and supports automatic resume if interrupted.
+> **Note:** The data download is ~1.3 GB. The download script shows a progress bar and supports automatic resume if interrupted.
 
-### Running Notebooks
+### Available CLI Commands
 
-**Option 1: VS Code (Recommended)**
 ```bash
-code .
-# Open any .ipynb file and run cells
+# Download or update NVD data
+python -m src.cli.main download-data
+
+# Generate reports for a specific month
+python -m src.cli.main generate-reports --year 2025 --month 1
+
+# Run the complete monthly analysis pipeline
+python -m src.cli.main run-monthly
+
+# Validate configuration and setup
+python -m src.cli.main validate
+
+# Verify timezone is set correctly (for scheduled runs)
+python -m src.cli.main check-timezone
+
+# Update README with latest statistics
+python -m src.cli.main update-readme-stats
 ```
 
-**Option 2: Jupyter Notebook**
-```bash
-jupyter notebook
-```
+### Automated Execution
 
-**Option 3: Google Colab**
-- Upload any notebook to [Google Colab](https://colab.research.google.com)
-- Upload `data/nvd.jsonl` or run the download script in Colab
+**Reports are generated automatically every month.** The GitHub Actions workflow runs on the **1st of each month at 7:00 AM Central Time** and:
+
+1. Downloads the latest NVD data
+2. Analyzes CVE statistics and trends
+3. Generates reports in Markdown and JSON
+4. Updates the README with latest statistics
+5. Commits and pushes results to the repository
+6. Creates a GitHub release with the data
 
 ---
 
 ## 📈 Available Analyses
 
-### Monthly Reports
-Each month folder contains a notebook with:
-- 📅 **CVE Calendar** - Heatmap of daily CVE publications
-- 📊 **Weekly/Daily Trends** - Publication patterns over time
-- 🎯 **CVSS Breakdown** - Score distribution analysis
-- 🏢 **Top CNAs** - Most active CVE Numbering Authorities
-- 🐛 **CWE Analysis** - Most common vulnerability types
+Each monthly report includes:
 
-### Year-Over-Year Comparisons
-- Cumulative CVE growth comparison between years
-- Trend analysis and percentage changes
-- Visual comparisons with annotated milestones
+- 📊 **CVE Count Statistics** - Total CVEs, daily averages, growth rates
+- 🎯 **CVSS Score Analysis** - Average scores, distribution by severity level
+- 🏢 **CNA Rankings** - Most active CVE Numbering Authorities
+- 🐛 **CWE Analysis** - Most common weakness enumeration types
+- 📈 **Trend Analysis** - YoY growth, month-over-month comparisons
 
-### Historical Analysis
-- `AllData.ipynb` - Complete dataset analysis from 1999 to present
-- Long-term trends and patterns
-- CNA and CWE evolution over time
+### Generated Report Formats
+
+Each month generates:
+- **Markdown** (`outputs/YYYY/MonthName/MonthName.md`) - Human-readable report
+- **JSON** (`outputs/YYYY/MonthName/MonthName.json`) - Machine-readable data
+- **CSV** (`outputs/YYYY/MonthName/MonthName.csv`) - Spreadsheet-compatible format
+
+### Accessing Reports
+
+View the latest reports in the [outputs/](outputs/) directory, organized by year and month.
 
 ---
 
-## 🔄 Automated Updates
+## ⚙️ Architecture
 
-The repository includes automation for creating new monthly notebooks:
+### Data Pipeline
+1. **Download** - NVD JSON data (~1.3 GB) with resume capability
+2. **Process** - Flatten nested JSON structure into analyzable format
+3. **Analyze** - Calculate statistics, trends, and patterns
+4. **Report** - Generate multi-format output (MD, JSON, CSV)
+5. **Deploy** - Commit results and create GitHub release
+
+### Technology Stack
+- **Python 3.10+** - Core language
+- **Typer** - CLI framework
+- **Pandas** - Data analysis
+- **GitHub Actions** - Automation
+- **PyArrow** - Fast data serialization
+
+### Performance
+- Processes 316,000+ CVE records in seconds
+- Minimal resource footprint on GitHub Actions runners
+- Resume-capable downloads (survives interruptions)
+
+---
+
+## 🧪 Testing
+
+Run the test suite locally:
 
 ```bash
-# Create next month's notebook automatically
-python tasks/auto_update.py
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_config.py
 ```
 
-This script:
-1. Copies the most recent month's notebook
-2. Updates all date configurations
-3. Renames files appropriately
-4. Executes the new notebook
+The test suite validates:
+- Configuration management
+- Directory structure
+- CLI command functionality
+- Report generation
 
----
-
-## ⚡ Performance
-
-This project uses **Pandas 3** with the **PyArrow** backend for significantly faster data processing:
-
-- **PyArrow-backed strings**: 2-10x faster string operations (filtering, splitting, searching)
-- **Copy-on-Write**: Reduced memory usage through lazy data copying
-- **1 MB streaming chunks**: Faster data downloads with progress tracking and resume support
+Tests run automatically on all pull requests via GitHub Actions.
 
 ---
 
@@ -158,8 +220,20 @@ The data reveals several important trends in vulnerability disclosure:
 Contributions are welcome! Here's how you can help:
 
 1. **Report Issues**: Found a bug or have a suggestion? [Open an issue](https://github.com/jgamblin/monthlyCVEStats/issues)
-2. **Submit PRs**: Improvements to analysis, visualizations, or documentation
-3. **Share Ideas**: New metrics or analyses you'd like to see
+2. **Submit PRs**: Improvements to analysis, data processing, or features
+3. **Share Ideas**: New metrics or analysis types you'd like to see
+4. **Improve Docs**: Help improve documentation and examples
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Make your changes and add tests
+4. Run tests locally (`pytest`)
+5. Commit your changes
+6. Push to your fork and create a Pull Request
+
+All PRs are tested automatically.
 
 ---
 

@@ -14,6 +14,7 @@ except ImportError:
 from src.config import Config
 from src.utils.logging import setup_logging
 from src.utils.timezone_check import verify_central_time
+from src.utils.readme_updater import update_readme
 from src.data.downloader import NVDDownloader
 from src.data.processor import DataProcessor
 from src.analysis.statistics import StatisticsAnalyzer
@@ -181,6 +182,17 @@ def check_timezone() -> None:
     """Check and display current timezone info."""
     verify_central_time()
     logger.info("✓ Timezone check complete")
+
+
+@app.command()
+def update_readme_stats() -> None:
+    """Update README.md with latest statistics from reports."""
+    logger.info("Updating README with latest statistics...")
+    if update_readme():
+        logger.info("✓ README updated successfully")
+    else:
+        logger.error("✗ Failed to update README")
+        sys.exit(1)
 
 
 def generate_reports_internal(year: int, month: int, df, analysis_results: dict) -> None:

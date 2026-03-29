@@ -52,12 +52,15 @@ jobs:
       - name: Generate reports
         run: python -m src.cli.main generate-reports
       
+      - name: Update README with statistics
+        run: python -m src.cli.main update-readme-stats
+      
       - name: Validate outputs
         run: python -m src.cli.main validate
       
       - name: Commit and push results
         run: |
-          git add outputs/ data/nvd.jsonl
+          git add outputs/ data/nvd.jsonl README.md
           if git diff --quiet --cached; then
             echo "No changes to commit"
           else
