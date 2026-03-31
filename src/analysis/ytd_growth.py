@@ -152,9 +152,13 @@ class YTDAnalyzer:
         Returns:
             Dictionary with calculated statistics
         """
-        # Get current YTD (up to today)
+        # Get current YTD (up to the most recently completed month)
         today = datetime.now()
-        current_month = today.month
+        if today.day == 1:
+            # On the 1st we're reporting on the previous month
+            current_month = 12 if today.month == 1 else today.month - 1
+        else:
+            current_month = today.month
 
         current_ytd_total = current_cumulative.get(current_month, 0)
         previous_ytd_total = previous_cumulative.get(current_month, 0)
@@ -176,8 +180,12 @@ class YTDAnalyzer:
             month_growth = current_month_count - previous_month_count
             month_percent = (month_growth / previous_month_count) * 100
 
-        # Daily average (days elapsed so far this year)
-        day_of_year = today.timetuple().tm_yday
+        # Daily average (days elapsed through the reporting period)
+        if today.day == 1:
+            # On the 1st, count days through end of previous month
+            day_of_year = (today - today.replace(month=1, day=1)).days
+        else:
+            day_of_year = today.timetuple().tm_yday
         avg_per_day = current_ytd_total / day_of_year if day_of_year > 0 else 0
 
         return {
