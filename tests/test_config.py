@@ -1,15 +1,38 @@
 """Tests for configuration module."""
 
 from datetime import datetime
+from unittest.mock import patch
 from src.config import Config
 
 
-def test_get_current_month_info():
-    """Test getting current month info."""
-    year, month = Config.get_current_month_info()
-    now = datetime.now()
-    assert year == now.year
-    assert month == now.month
+def test_get_current_month_info_mid_month():
+    """On any day other than the 1st, return the current month."""
+    fake_now = datetime(2026, 4, 15)
+    with patch("src.config.datetime") as mock_dt:
+        mock_dt.now.return_value = fake_now
+        year, month = Config.get_current_month_info()
+    assert year == 2026
+    assert month == 4
+
+
+def test_get_current_month_info_first_of_month():
+    """On the 1st, return the previous month (report on completed month)."""
+    fake_now = datetime(2026, 4, 1)
+    with patch("src.config.datetime") as mock_dt:
+        mock_dt.now.return_value = fake_now
+        year, month = Config.get_current_month_info()
+    assert year == 2026
+    assert month == 3
+
+
+def test_get_current_month_info_jan_first():
+    """On Jan 1st, return December of the previous year."""
+    fake_now = datetime(2026, 1, 1)
+    with patch("src.config.datetime") as mock_dt:
+        mock_dt.now.return_value = fake_now
+        year, month = Config.get_current_month_info()
+    assert year == 2025
+    assert month == 12
 
 
 def test_get_report_output_dir_with_month():

@@ -5,6 +5,7 @@ This module updates the README badge and statistics section with the latest
 data from the most recent monthly report.
 """
 
+import calendar
 import json
 from pathlib import Path
 from datetime import datetime
@@ -99,14 +100,23 @@ def extract_stats(report: dict) -> dict | None:
         data = report.get("data", report)
         summary = data.get("Summary", {})
         cvss_stats = data.get("CVSS Statistics", {})
-        
+
         total_cves = summary.get("Total CVEs", 0)
         # Use "mean" field for average CVSS (it's the mean average)
         avg_cvss = cvss_stats.get("mean", 0) if cvss_stats else 0
-        
-        # Calculate average CVEs per day (rough estimate, 30 days per month)
-        avg_per_day = total_cves / 30 if total_cves else 0
-        
+
+        # Calculate average CVEs per day using actual days in the report month
+        now = datetime.now()
+        report_month = summary.get("Month")
+        report_year = summary.get("Year", now.year)
+        if report_month and isinstance(report_month, str):
+            # Convert month name to number
+            month_num = list(calendar.month_name).index(report_month)
+            days_in_month = calendar.monthrange(int(report_year), month_num)[1]
+        else:
+            days_in_month = calendar.monthrange(now.year, now.month)[1]
+        avg_per_day = total_cves / days_in_month if total_cves else 0
+
         return {
             "update_date": datetime.now().strftime("%B %d, %Y"),
             "total_cves": format(int(total_cves), ","),

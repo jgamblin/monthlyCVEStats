@@ -47,7 +47,9 @@ class YTDAnalyzer:
         previous_cumulative = self._calculate_cumulative(previous_ytd)
 
         # Calculate statistics
-        stats = self._calculate_statistics(current_ytd, previous_ytd, current_cumulative, previous_cumulative)
+        stats = self._calculate_statistics(
+            current_ytd, previous_ytd, current_cumulative, previous_cumulative
+        )
 
         return {
             "current_year": self.current_year,
@@ -93,9 +95,8 @@ class YTDAnalyzer:
                         or cve.get("date")
                     )
                     if not date_str and "cve" in cve:
-                        date_str = (
-                            cve["cve"].get("published")
-                            or cve["cve"].get("datePublished")
+                        date_str = cve["cve"].get("published") or cve["cve"].get(
+                            "datePublished"
                         )
 
                 if not date_str:
@@ -175,8 +176,9 @@ class YTDAnalyzer:
             month_growth = current_month_count - previous_month_count
             month_percent = (month_growth / previous_month_count) * 100
 
-        # Daily average
-        avg_per_day = current_ytd_total / current_month if current_month > 0 else 0
+        # Daily average (days elapsed so far this year)
+        day_of_year = today.timetuple().tm_yday
+        avg_per_day = current_ytd_total / day_of_year if day_of_year > 0 else 0
 
         return {
             "current_month": current_month,
@@ -216,17 +218,17 @@ class YTDAnalyzer:
         month_diff = f"{stats['month_growth']:+,}"
         avg_per_day = f"{stats['avg_cves_per_day']:.0f}"
 
-        summary = f"""{current_month_name} {analysis['current_year']} CVE Growth Report:
+        summary = f"""{current_month_name} {analysis["current_year"]} CVE Growth Report:
 
 YTD ({current_month_name}):
-► {ytd_total} total CVEs ({stats['yoy_percent']:+.1f}% vs {previous_year} YTD)
+► {ytd_total} total CVEs ({stats["yoy_percent"]:+.1f}% vs {previous_year} YTD)
 ► {avg_per_day} new vulnerabilities per day
 ► {ytd_diff} more CVEs than {previous_year} through {current_month_name}
 
 {current_month_name} alone:
-► {month_count} CVEs ({stats['month_percent']:+.1f}% vs {current_month_name} {previous_year})
+► {month_count} CVEs ({stats["month_percent"]:+.1f}% vs {current_month_name} {previous_year})
 
 Context:
-After the CVE volume in {current_month_name} {previous_year}, {current_month_name} is tracking at {stats['month_percent']:+.1f}% — {'pushing' if stats['month_percent'] > 0 else 'pulling'} YTD growth from {stats['yoy_percent']:.1f}%."""
+After the CVE volume in {current_month_name} {previous_year}, {current_month_name} is tracking at {stats["month_percent"]:+.1f}% — {"pushing" if stats["month_percent"] > 0 else "pulling"} YTD growth from {stats["yoy_percent"]:.1f}%."""
 
         return summary

@@ -4,8 +4,8 @@ on:
   schedule:
     # 13:00 UTC = 7:00 AM CST (winter) / 8:00 AM CDT (summer)
     # This is the optimal time that catches the early morning in Central Time
-    - cron: '0 13 1 * *'  # 1st of every month at 13:00 UTC
-  
+    - cron: "0 13 1 * *" # 1st of every month at 13:00 UTC
+
   # Allow manual trigger if needed
   workflow_dispatch:
 
@@ -16,55 +16,52 @@ permissions:
 jobs:
   monthly-update:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-          cache: 'pip'
-      
+          python-version: "3.11"
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: Verify Central Time execution
         run: python src/utils/timezone_check.py
-      
+
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-      
+
       - name: Configure Git
         run: |
           git config --local user.email "github-actions@github.com"
           git config --local user.name "Monthly CVE Update Bot"
-      
+
       - name: Download latest NVD data
         run: python -m src.cli.main download-data
-      
+
       - name: Run monthly analysis
         run: python -m src.cli.main run-monthly
-      
-      - name: Generate reports
-        run: python -m src.cli.main generate-reports
-      
+
       - name: Generate YTD growth report and visualizations
         run: python -m src.cli.main generate-ytd-report
-      
+
       - name: Update README with statistics
         run: python -m src.cli.main update-readme-stats
-      
+
       - name: Validate outputs
         run: python -m src.cli.main validate
-      
+
       - name: Commit and push results
         run: |
           git add outputs/ data/nvd.jsonl README.md
@@ -74,19 +71,16 @@ jobs:
             git commit -m "Monthly CVE Update - $(date +'%Y-%m-%d')"
             git push
           fi
-      
+
       - name: Create GitHub Release
         if: success()
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: cve-update-${{ github.run_number }}
-          release_name: CVE Update - ${{ steps.date.outputs.date }}
+          tag: cve-update-${{ steps.date.outputs.date }}
+          name: CVE Update - ${{ steps.date.outputs.date }}
           body: "Automated monthly CVE analysis and report generation"
-          draft: false
-          prerelease: false
-      
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Report failure
         if: failure()
         uses: actions/github-script@v7

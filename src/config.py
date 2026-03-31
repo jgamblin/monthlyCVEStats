@@ -14,13 +14,11 @@ class Config:
     DATA_DIR = PROJECT_ROOT / "data"
     OUTPUT_DIR = PROJECT_ROOT / "outputs"
     CACHE_DIR = DATA_DIR / "cache"
-    NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks"
 
     # NVD Data
     NVD_DATA_FILE = DATA_DIR / "nvd.jsonl"
     NVD_SOURCE_URL = os.getenv(
-        "NVD_SOURCE_URL",
-        "https://nvd.handsonhacking.org/nvd.jsonl"
+        "NVD_SOURCE_URL", "https://nvd.handsonhacking.org/nvd.jsonl"
     )
     DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MB chunks
 
@@ -46,22 +44,32 @@ class Config:
 
     @classmethod
     def get_current_month_info(cls) -> tuple[int, int]:
-        """Get current year and month for analysis.
-        
+        """Get the year and month to analyze.
+
+        The workflow runs on the 1st of each month to report on the
+        previous month.  On the 1st we therefore return (prev_year,
+        prev_month); on any other day we return the current month
+        (useful for manual / mid-month runs).
+
         Returns:
             Tuple of (year, month)
         """
         now = datetime.now()
+        if now.day == 1:
+            # Roll back to previous month
+            if now.month == 1:
+                return (now.year - 1, 12)
+            return (now.year, now.month - 1)
         return (now.year, now.month)
 
     @classmethod
     def get_report_output_dir(cls, year: int, month: Optional[int] = None) -> Path:
         """Get output directory for reports.
-        
+
         Args:
             year: Year for report
             month: Month for report (optional)
-            
+
         Returns:
             Path to output directory
         """
@@ -70,7 +78,7 @@ class Config:
             output_path = cls.OUTPUT_DIR / str(year) / month_name
         else:
             output_path = cls.OUTPUT_DIR / str(year)
-        
+
         output_path.mkdir(parents=True, exist_ok=True)
         return output_path
 
