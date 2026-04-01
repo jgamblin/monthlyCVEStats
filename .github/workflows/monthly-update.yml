@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
@@ -36,7 +37,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Verify Central Time execution
-        run: python src/utils/timezone_check.py
+        run: python -m src.utils.timezone_check
 
       - name: Get current date
         id: date
