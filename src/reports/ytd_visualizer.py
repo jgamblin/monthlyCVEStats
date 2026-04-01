@@ -319,7 +319,7 @@ class YTDVisualizer:
             ax.set_xticks(month_starts)
             ax.set_xticklabels(month_labels)
 
-            # Difference annotation at endpoint
+            # Difference annotation at endpoint (inside chart area)
             if current_values and previous_values:
                 last_day = days[-1]
                 last_current = current_values[-1]
@@ -328,12 +328,13 @@ class YTDVisualizer:
                 diff_pct = (diff / last_previous * 100) if last_previous > 0 else 0
 
                 bbox_color = colors["accent"] if diff > 0 else "#f85149"
+                mid_y = (last_current + last_previous) / 2
                 ax.annotate(
                     f"{diff:+,}\n({diff_pct:+.1f}%)",
-                    xy=(last_day, last_current),
+                    xy=(last_day, mid_y),
                     xytext=(
-                        last_day + max(days) * 0.03,
-                        (last_current + last_previous) / 2,
+                        last_day - max(days) * 0.12,
+                        mid_y,
                     ),
                     fontsize=10,
                     fontweight="bold",
@@ -345,7 +346,7 @@ class YTDVisualizer:
                         linewidth=1.5,
                     ),
                     arrowprops=dict(arrowstyle="->", color=bbox_color, lw=1.5),
-                    ha="left",
+                    ha="center",
                     va="center",
                     zorder=5,
                 )
@@ -461,7 +462,7 @@ class YTDVisualizer:
         output_path = self.output_dir / filename
         plt.savefig(
             output_path,
-            dpi=150,
+            dpi=200,
             bbox_inches="tight",
             facecolor=colors["background"],
             edgecolor="none",
@@ -599,8 +600,8 @@ class YTDVisualizer:
             colors,
         )
 
-        # Chart
-        ax = fig.add_axes([0.10, 0.12, 0.84, 0.64])
+        # Chart (reduced height for footer stats)
+        ax = fig.add_axes([0.10, 0.15, 0.84, 0.61])
         ax.set_facecolor(colors["background"])
 
         if daily_current and daily_previous:
@@ -650,12 +651,13 @@ class YTDVisualizer:
                     (diff / previous_values[-1] * 100) if previous_values[-1] > 0 else 0
                 )
                 bbox_color = colors["accent"] if diff > 0 else "#f85149"
+                mid_y = (current_values[-1] + previous_values[-1]) / 2
                 ax.annotate(
                     f"{diff:+,}\n({diff_pct:+.1f}%)",
-                    xy=(last_day, current_values[-1]),
+                    xy=(last_day, mid_y),
                     xytext=(
-                        last_day + max(days) * 0.03,
-                        (current_values[-1] + previous_values[-1]) / 2,
+                        last_day - max(days) * 0.12,
+                        mid_y,
                     ),
                     fontsize=9,
                     fontweight="bold",
@@ -667,7 +669,7 @@ class YTDVisualizer:
                         linewidth=1.5,
                     ),
                     arrowprops=dict(arrowstyle="->", color=bbox_color, lw=1.5),
-                    ha="left",
+                    ha="center",
                     va="center",
                     zorder=5,
                 )
@@ -716,6 +718,44 @@ class YTDVisualizer:
         for text in legend.get_texts():
             text.set_color(colors["text"])
 
+        # Footer stats
+        if monthly_data:
+            month_counts = {
+                m: monthly_data.get(m, 0) for m in range(1, through_month + 1)
+            }
+            non_zero = {m: c for m, c in month_counts.items() if c > 0}
+            if non_zero:
+                peak_m = max(non_zero, key=non_zero.get)
+                low_m = min(non_zero, key=non_zero.get)
+                best_growth_m = None
+                best_growth_pct = 0
+                for m in range(2, through_month + 1):
+                    prev = month_counts.get(m - 1, 0)
+                    if prev > 0:
+                        g = (month_counts[m] - prev) / prev * 100
+                        if g > best_growth_pct:
+                            best_growth_pct = g
+                            best_growth_m = m
+
+                footer_parts = [
+                    f"Peak: {calendar.month_abbr[peak_m]} ({non_zero[peak_m]:,})",
+                    f"Low: {calendar.month_abbr[low_m]} ({non_zero[low_m]:,})",
+                ]
+                if best_growth_m:
+                    footer_parts.append(
+                        f"Highest Growth: {calendar.month_abbr[best_growth_m]} ({best_growth_pct:+.1f}%)"
+                    )
+
+                fig.text(
+                    0.5,
+                    0.06,
+                    "  ·  ".join(footer_parts),
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    color=colors["text_dim"],
+                )
+
         fig.text(
             0.5,
             0.02,
@@ -732,7 +772,7 @@ class YTDVisualizer:
         )
         plt.savefig(
             output_path,
-            dpi=150,
+            dpi=200,
             bbox_inches="tight",
             facecolor=colors["background"],
             edgecolor="none",
@@ -826,7 +866,7 @@ class YTDVisualizer:
         )
         plt.savefig(
             output_path,
-            dpi=150,
+            dpi=200,
             bbox_inches="tight",
             facecolor=colors["background"],
             edgecolor="none",
