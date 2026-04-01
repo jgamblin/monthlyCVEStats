@@ -1,0 +1,12 @@
+March 2026 CVE Growth Report:
+
+YTD (March):
+► 16,255 total CVEs (+31.0% vs 2025 YTD)
+► 181 new vulnerabilities per day
+► +3,843 more CVEs than 2025 through March
+
+March alone:
+► 6,304 CVEs (+51.3% vs March 2025)
+
+Context:
+After the CVE volume in March 2025, March is tracking at +51.3% — pushing YTD growth from 31.0%.
