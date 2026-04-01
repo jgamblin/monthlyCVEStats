@@ -1,13 +1,13 @@
 # CVE Report - March 2026
 
-**Generated:** 2026-04-01 17:53:05
+**Generated:** 2026-04-01 18:02:21
 
 ## Summary
 
 - **Month**: March
 - **Year**: 2026
-- **Total CVEs**: 6304
-- **Generated**: 2026-04-01 17:53:05
+- **Total CVEs**: 6246
+- **Generated**: 2026-04-01 18:02:21
 
 ## cvss
 
