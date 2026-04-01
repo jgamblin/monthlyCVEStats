@@ -65,7 +65,7 @@ jobs:
 
       - name: Commit and push results
         run: |
-          git add outputs/ data/nvd.jsonl README.md
+          git add outputs/ README.md
           if git diff --quiet --cached; then
             echo "No changes to commit"
           else
