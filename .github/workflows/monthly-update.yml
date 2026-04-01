@@ -84,7 +84,7 @@ jobs:
           tag: cve-update-${{ steps.date.outputs.month_name }}-${{ steps.date.outputs.year }}
           name: "${{ steps.date.outputs.month_name }} ${{ steps.date.outputs.year }} CVE Report"
           bodyFile: outputs/${{ steps.date.outputs.year }}/post.txt
-          artifacts: "outputs/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month_name }}/*,outputs/${{ steps.date.outputs.year }}/*.png,outputs/${{ steps.date.outputs.year }}/post.txt"
+          artifacts: "outputs/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month_name }}/*,outputs/${{ steps.date.outputs.year }}/*.png,outputs/${{ steps.date.outputs.year }}/post.txt,outputs/${{ steps.date.outputs.year }}/enriched_post.txt"
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Report failure

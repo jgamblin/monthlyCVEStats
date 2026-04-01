@@ -243,3 +243,89 @@ Context:
 After the CVE volume in {current_month_name} {previous_year}, {current_month_name} is tracking at {stats["month_percent"]:+.1f}% — {"pushing" if stats["month_percent"] > 0 else "pulling"} YTD growth from {stats["yoy_percent"]:.1f}%."""
 
         return summary
+
+    def get_enriched_text(self, analysis: dict, monthly_report: dict) -> str:
+        """
+        Generate enriched social media post with CVSS and CWE context.
+
+        Args:
+            analysis: Result from analyze_ytd()
+            monthly_report: Parsed monthly report JSON (the "data" dict)
+
+        Returns:
+            Formatted enriched text for social posts
+        """
+        stats = analysis["statistics"]
+        current_month_name = datetime(
+            analysis["current_year"], stats["current_month"], 1
+        ).strftime("%B")
+        previous_year = analysis["previous_year"]
+        year = analysis["current_year"]
+
+        month_count = f"{stats['current_month_count']:,}"
+        month_pct = f"{stats['month_percent']:+.1f}%"
+        ytd_total = f"{stats['current_ytd_total']:,}"
+        ytd_pct = f"{stats['yoy_percent']:+.1f}%"
+        avg_day = f"{stats['avg_cves_per_day']:.0f}"
+
+        # Common CWE ID to short name mapping
+        cwe_names = {
+            "CWE-79": "XSS",
+            "CWE-89": "SQL Injection",
+            "CWE-862": "Missing Authorization",
+            "CWE-22": "Path Traversal",
+            "CWE-98": "PHP Remote File Inclusion",
+            "CWE-74": "Injection",
+            "CWE-787": "Out-of-bounds Write",
+            "CWE-119": "Buffer Overflow",
+            "CWE-863": "Incorrect Authorization",
+            "CWE-918": "SSRF",
+            "CWE-78": "OS Command Injection",
+            "CWE-416": "Use After Free",
+            "CWE-352": "CSRF",
+            "CWE-200": "Information Exposure",
+            "CWE-476": "NULL Pointer Dereference",
+            "CWE-434": "Unrestricted Upload",
+            "CWE-125": "Out-of-bounds Read",
+            "CWE-502": "Deserialization",
+            "CWE-77": "Command Injection",
+            "CWE-400": "Resource Exhaustion",
+            "CWE-94": "Code Injection",
+            "CWE-306": "Missing Authentication",
+        }
+
+        # Build CVSS line
+        cvss_data = monthly_report.get("cvss", {})
+        cvss_line = ""
+        if cvss_data.get("median"):
+            median = cvss_data["median"]
+            p75 = cvss_data.get("percentile_75", "")
+            cvss_line = f"\nMedian CVSS: {median}"
+            if p75:
+                cvss_line += f" (75th percentile: {p75})"
+            cvss_line += "\n"
+
+        # Build top CWEs
+        cwe_data = monthly_report.get("cwe", {})
+        top_cwes = cwe_data.get("top_cwes", {})
+        cwe_lines = ""
+        if top_cwes:
+            items = list(top_cwes.items())[:5]
+            cwe_lines = "\nTop weaknesses:\n"
+            for cwe_id, count in items:
+                name = cwe_names.get(cwe_id, cwe_id)
+                cwe_lines += f"  {name} ({cwe_id}): {count:,}\n"
+
+        text = (
+            f"{current_month_name} saw {month_count} new CVEs — "
+            f"{month_pct} over {current_month_name} {previous_year} "
+            f"and pushing {year} YTD to {ytd_total} "
+            f"({ytd_pct} YoY). "
+            f"That's {avg_day} new vulnerabilities per day."
+            f"{cvss_line}"
+            f"{cwe_lines}"
+            f"\nData: NVD (excluding rejected CVEs)\n\n"
+            f"#CVE #VulnerabilityManagement #InfoSec #CyberSecurity"
+        )
+
+        return text

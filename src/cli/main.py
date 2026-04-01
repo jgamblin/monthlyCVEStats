@@ -32,11 +32,11 @@ logger = setup_logging(__name__)
 
 
 @app.command()
-def download_data(resume: bool = typer.Option(
-    True,
-    "--resume/--no-resume",
-    help="Resume interrupted downloads"
-)) -> None:
+def download_data(
+    resume: bool = typer.Option(
+        True, "--resume/--no-resume", help="Resume interrupted downloads"
+    ),
+) -> None:
     """Download the latest NVD data."""
     logger.info("Starting NVD data download...")
     Config.ensure_directories()
@@ -97,14 +97,19 @@ def run_monthly() -> None:
     logger.info(f"✓ Analysis complete: {len(df)} CVEs processed")
 
     # Generate reports
-    generate_reports_internal(year, month, df, {
-        "cvss": cvss_stats,
-        "cna": cna_stats,
-        "cwe": cwe_stats,
-        "daily": daily_dist,
-        "monthly_trend": monthly_trend,
-        "growth": growth,
-    })
+    generate_reports_internal(
+        year,
+        month,
+        df,
+        {
+            "cvss": cvss_stats,
+            "cna": cna_stats,
+            "cwe": cwe_stats,
+            "daily": daily_dist,
+            "monthly_trend": monthly_trend,
+            "growth": growth,
+        },
+    )
 
 
 @app.command()
@@ -266,6 +271,24 @@ def generate_ytd_report() -> None:
     summary_file.write_text(summary_text)
     logger.info(f"✓ Summary saved to {summary_file}")
 
+    # Generate enriched post with CVSS/CWE context from monthly report
+    year, month = Config.get_current_month_info()
+    month_name = datetime(year, month, 1).strftime("%B")
+    report_json = Config.get_report_output_dir(year, month) / f"{month_name}.json"
+    if report_json.exists():
+        import json
+
+        with open(report_json) as f:
+            monthly_report = json.load(f).get("data", {})
+        enriched_text = ytd_analyzer.get_enriched_text(analysis, monthly_report)
+        enriched_file = output_dir / "enriched_post.txt"
+        enriched_file.write_text(enriched_text)
+        logger.info(f"✓ Enriched post saved to {enriched_file}")
+    else:
+        logger.warning(
+            f"Monthly report not found at {report_json}, skipping enriched post"
+        )
+
     # Print summary for user
     logger.info("\n" + "=" * 70)
     logger.info("YTD GROWTH REPORT")
@@ -276,7 +299,9 @@ def generate_ytd_report() -> None:
     logger.info(f"✓ YTD report generated in {output_dir}")
 
 
-def generate_reports_internal(year: int, month: int, df, analysis_results: dict) -> None:
+def generate_reports_internal(
+    year: int, month: int, df, analysis_results: dict
+) -> None:
     """Internal helper to generate reports."""
     output_dir = Config.get_report_output_dir(year, month)
     month_name = datetime(year, month, 1).strftime("%B")
