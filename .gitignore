@@ -131,7 +131,6 @@ dmypy.json
 /jsondata
 */jsondata
 jsondata
-*.json
 *.jsonl
 *.json.zip
 
@@ -139,10 +138,6 @@ jsondata
 archive/
 notebooks/
 legacy_notebooks/
-
-# Generated outputs (keep current year, archive older reports)
-outputs/*/
-!outputs/.gitkeep
 
 # NVD data cache
 data/nvd.jsonl

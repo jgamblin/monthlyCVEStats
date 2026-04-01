@@ -39,9 +39,13 @@ jobs:
       - name: Verify Central Time execution
         run: python -m src.utils.timezone_check
 
-      - name: Get current date
+      - name: Get report month info
         id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+        run: |
+          echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "year=$(python -c "from src.config import Config; y,m = Config.get_current_month_info(); print(y)")" >> $GITHUB_OUTPUT
+          echo "month=$(python -c "from src.config import Config; y,m = Config.get_current_month_info(); print(m)")" >> $GITHUB_OUTPUT
+          echo "month_name=$(python -c "from src.config import Config; from datetime import datetime; y,m = Config.get_current_month_info(); print(datetime(y,m,1).strftime('%B'))")" >> $GITHUB_OUTPUT
 
       - name: Configure Git
         run: |
@@ -77,9 +81,10 @@ jobs:
         if: success()
         uses: ncipollo/release-action@v1
         with:
-          tag: cve-update-${{ steps.date.outputs.date }}
-          name: CVE Update - ${{ steps.date.outputs.date }}
-          body: "Automated monthly CVE analysis and report generation"
+          tag: cve-update-${{ steps.date.outputs.month_name }}-${{ steps.date.outputs.year }}
+          name: "${{ steps.date.outputs.month_name }} ${{ steps.date.outputs.year }} CVE Report"
+          bodyFile: outputs/${{ steps.date.outputs.year }}/post.txt
+          artifacts: "outputs/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month_name }}/*,outputs/${{ steps.date.outputs.year }}/*.png,outputs/${{ steps.date.outputs.year }}/post.txt"
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Report failure
