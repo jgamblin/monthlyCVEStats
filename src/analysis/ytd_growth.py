@@ -85,19 +85,22 @@ class YTDAnalyzer:
 
         for cve in cves:
             try:
+                # Handle nested cve structure from NVD API format
+                cve_data = cve.get("cve", cve) if isinstance(cve, dict) else cve
+                if not isinstance(cve_data, dict):
+                    continue
+
+                # Skip rejected CVEs
+                status = cve_data.get("vulnStatus", "")
+                if status == "Rejected":
+                    continue
+
                 # Extract publication date
-                date_str = None
-                if isinstance(cve, dict):
-                    # Try different possible date fields
-                    date_str = (
-                        cve.get("published")
-                        or cve.get("datePublished")
-                        or cve.get("date")
-                    )
-                    if not date_str and "cve" in cve:
-                        date_str = cve["cve"].get("published") or cve["cve"].get(
-                            "datePublished"
-                        )
+                date_str = (
+                    cve_data.get("published")
+                    or cve_data.get("datePublished")
+                    or cve_data.get("date")
+                )
 
                 if not date_str:
                     continue

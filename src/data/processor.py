@@ -13,7 +13,7 @@ class DataProcessor:
 
     def __init__(self, data_file: Path):
         """Initialize processor.
-        
+
         Args:
             data_file: Path to NVD jsonl data file
         """
@@ -22,10 +22,10 @@ class DataProcessor:
 
     def read_cves(self) -> Iterator[dict]:
         """Read and yield individual CVE records from jsonl file.
-        
+
         The NVD data file contains one line with a JSON array of all CVEs.
         This method yields individual CVE objects from that array.
-        
+
         Yields:
             Dictionary containing individual CVE record
         """
@@ -37,16 +37,16 @@ class DataProcessor:
             with open(self.data_file, "r") as f:
                 # NVD data is a single JSON array on one line
                 data = json.load(f)
-                
+
                 if not isinstance(data, list):
                     self.logger.error(f"Expected list of CVEs, got {type(data)}")
                     return
-                
+
                 self.logger.info(f"Loaded {len(data)} CVE records from file")
-                
+
                 for cve in data:
                     yield cve
-                    
+
         except json.JSONDecodeError as e:
             self.logger.error(f"Invalid JSON in data file: {e}")
         except IOError as e:
@@ -54,15 +54,15 @@ class DataProcessor:
 
     def _flatten_cve(self, cve: dict) -> dict:
         """Flatten nested CVE structure into flat dictionary.
-        
+
         Args:
             cve: CVE record with nested structure
-            
+
         Returns:
             Flattened dictionary suitable for DataFrame
         """
         flat = {}
-        
+
         # Extract from nested cve object
         if "cve" in cve:
             cve_obj = cve["cve"]
@@ -70,7 +70,7 @@ class DataProcessor:
             flat["published"] = cve_obj.get("published")
             flat["last_modified"] = cve_obj.get("lastModified")
             flat["vuln_status"] = cve_obj.get("vulnStatus")
-        
+
         # Extract CVSS v3 score if available
         if "cve" in cve and "metrics" in cve["cve"]:
             metrics = cve["cve"]["metrics"]
@@ -84,12 +84,12 @@ class DataProcessor:
                 if "cvssData" in cvss_data:
                     flat["cvss_v3_score"] = cvss_data["cvssData"].get("baseScore")
                     flat["cvss_v3_vector"] = cvss_data["cvssData"].get("vectorString")
-        
+
         # Extract CNA
         if "cve" in cve:
             cve_obj = cve["cve"]
             flat["source_identifier"] = cve_obj.get("sourceIdentifier")
-        
+
         # Extract weakness info
         if "cve" in cve and "weaknesses" in cve["cve"]:
             weaknesses = cve["cve"].get("weaknesses", [])
@@ -103,26 +103,31 @@ class DataProcessor:
                                 break
                         if "primary_cwe" in flat:
                             break
-        
+
         return flat
 
-    def load_to_dataframe(self, year: Optional[int] = None,
-                          month: Optional[int] = None) -> pd.DataFrame:
+    def load_to_dataframe(
+        self, year: Optional[int] = None, month: Optional[int] = None
+    ) -> pd.DataFrame:
         """Load CVE data into pandas DataFrame, optionally filtered by date.
-        
+
         Args:
             year: Filter to specific year (optional)
             month: Filter to specific month (optional, requires year)
-            
+
         Returns:
             DataFrame with CVE records
         """
         records = []
-        
+
         for cve in self.read_cves():
             flat_record = self._flatten_cve(cve)
-            if flat_record:
-                records.append(flat_record)
+            if not flat_record:
+                continue
+            # Skip rejected CVEs
+            if flat_record.get("vuln_status") == "Rejected":
+                continue
+            records.append(flat_record)
 
         if not records:
             self.logger.warning("No records found in data file")
@@ -141,15 +146,16 @@ class DataProcessor:
 
         return df
 
-    def _filter_by_date(self, df: pd.DataFrame, year: int,
-                       month: Optional[int] = None) -> pd.DataFrame:
+    def _filter_by_date(
+        self, df: pd.DataFrame, year: int, month: Optional[int] = None
+    ) -> pd.DataFrame:
         """Filter DataFrame by publication date.
-        
+
         Args:
             df: Input DataFrame
             year: Year to filter
             month: Month to filter (optional)
-            
+
         Returns:
             Filtered DataFrame
         """
@@ -161,26 +167,28 @@ class DataProcessor:
             # Ensure published is datetime
             if not pd.api.types.is_datetime64_any_dtype(df["published"]):
                 df["published"] = pd.to_datetime(df["published"], errors="coerce")
-            
+
             # Filter by year
             df = df[df["published"].dt.year == year]
-            
+
             if month is not None:
                 df = df[df["published"].dt.month == month]
-            
-            self.logger.info(f"Filtered to {len(df)} records for {year}-{month or 'all'}")
+
+            self.logger.info(
+                f"Filtered to {len(df)} records for {year}-{month or 'all'}"
+            )
             return df
-            
+
         except Exception as e:
             self.logger.error(f"Error filtering by date: {e}")
             return df
 
     def calculate_statistics(self, df: pd.DataFrame) -> dict:
         """Calculate basic statistics from CVE data.
-        
+
         Args:
             df: CVE DataFrame
-            
+
         Returns:
             Dictionary of statistics
         """
