@@ -55,6 +55,7 @@ class YTDVisualizer:
         current_year: int,
         dark_mode: bool = True,
         filename: str = None,
+        through_month: int = 12,
     ) -> Path:
         """
         Create YTD growth comparison chart.
@@ -65,6 +66,7 @@ class YTDVisualizer:
             current_year: Current year
             dark_mode: Use dark theme if True
             filename: Output filename (auto-generated if None)
+            through_month: Last month to show (1-12)
 
         Returns:
             Path to saved image
@@ -76,9 +78,8 @@ class YTDVisualizer:
         fig.patch.set_facecolor(colors["background"])
         ax.set_facecolor(colors["background"])
 
-        # Prepare data
-        months = list(range(1, 13))
-        month_names = [
+        # Prepare data — only show through the reporting month
+        all_month_names = [
             "Jan",
             "Feb",
             "Mar",
@@ -92,6 +93,8 @@ class YTDVisualizer:
             "Nov",
             "Dec",
         ]
+        months = list(range(1, through_month + 1))
+        month_names = all_month_names[:through_month]
 
         current_values = [current_cumulative.get(m, 0) for m in months]
         previous_values = [previous_cumulative.get(m, 0) for m in months]
@@ -124,11 +127,20 @@ class YTDVisualizer:
         # Styling
         ax.grid(True, color=colors["grid"], alpha=0.2, linestyle="-", linewidth=0.5)
         ax.set_axisbelow(True)
+        ax.set_ylim(bottom=0)
 
         # Labels and title
         ax.set_xlabel("Month", fontsize=12, color=colors["text"], fontweight="bold")
-        ax.set_ylabel("Cumulative CVEs", fontsize=12, color=colors["text"], fontweight="bold")
-        ax.set_title(f"{current_year} CVE Growth Report", fontsize=18, color=colors["text"], fontweight="bold", pad=20)
+        ax.set_ylabel(
+            "Cumulative CVEs", fontsize=12, color=colors["text"], fontweight="bold"
+        )
+        ax.set_title(
+            f"{current_year} YTD CVE Growth (through {month_names[-1]})",
+            fontsize=18,
+            color=colors["text"],
+            fontweight="bold",
+            pad=20,
+        )
 
         # Format axes
         ax.set_xticks(months)
@@ -161,7 +173,13 @@ class YTDVisualizer:
             filename = f"CVE_Growth_{current_year}{mode_suffix}_landscape.png"
 
         output_path = self.output_dir / filename
-        plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=colors["background"], edgecolor="none")
+        plt.savefig(
+            output_path,
+            dpi=150,
+            bbox_inches="tight",
+            facecolor=colors["background"],
+            edgecolor="none",
+        )
         plt.close()
 
         return output_path
@@ -172,6 +190,7 @@ class YTDVisualizer:
         previous_cumulative: dict,
         current_year: int,
         dark_mode: bool = True,
+        through_month: int = 12,
     ) -> Path:
         """
         Create square format YTD chart (1:1 aspect ratio for social media).
@@ -181,6 +200,7 @@ class YTDVisualizer:
             previous_cumulative: Dict of cumulative counts by month (previous year)
             current_year: Current year
             dark_mode: Use dark theme if True
+            through_month: Last month to show (1-12)
 
         Returns:
             Path to saved image
@@ -192,9 +212,8 @@ class YTDVisualizer:
         fig.patch.set_facecolor(colors["background"])
         ax.set_facecolor(colors["background"])
 
-        # Prepare data
-        months = list(range(1, 13))
-        month_names = [
+        # Prepare data — only show through the reporting month
+        all_month_names = [
             "Jan",
             "Feb",
             "Mar",
@@ -208,6 +227,8 @@ class YTDVisualizer:
             "Nov",
             "Dec",
         ]
+        months = list(range(1, through_month + 1))
+        month_names = all_month_names[:through_month]
 
         current_values = [current_cumulative.get(m, 0) for m in months]
         previous_values = [previous_cumulative.get(m, 0) for m in months]
@@ -240,12 +261,15 @@ class YTDVisualizer:
         # Styling
         ax.grid(True, color=colors["grid"], alpha=0.2, linestyle="-", linewidth=0.5)
         ax.set_axisbelow(True)
+        ax.set_ylim(bottom=0)
 
         # Labels and title
         ax.set_xlabel("Month", fontsize=11, color=colors["text"], fontweight="bold")
-        ax.set_ylabel("Cumulative CVEs", fontsize=11, color=colors["text"], fontweight="bold")
+        ax.set_ylabel(
+            "Cumulative CVEs", fontsize=11, color=colors["text"], fontweight="bold"
+        )
         ax.set_title(
-            f"{current_year} CVE Growth Report",
+            f"{current_year} YTD CVE Growth (through {month_names[-1]})",
             fontsize=16,
             color=colors["text"],
             fontweight="bold",
@@ -279,8 +303,16 @@ class YTDVisualizer:
 
         # Save figure
         mode_suffix = "_dark" if dark_mode else "_light"
-        output_path = self.output_dir / f"CVE_Growth_{current_year}{mode_suffix}_square.png"
-        plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=colors["background"], edgecolor="none")
+        output_path = (
+            self.output_dir / f"CVE_Growth_{current_year}{mode_suffix}_square.png"
+        )
+        plt.savefig(
+            output_path,
+            dpi=150,
+            bbox_inches="tight",
+            facecolor=colors["background"],
+            edgecolor="none",
+        )
         plt.close()
 
         return output_path
@@ -353,13 +385,31 @@ class YTDVisualizer:
         )
 
         # Styling
-        ax.set_ylabel("Cumulative CVEs (YTD)", fontsize=12, color=colors["text"], fontweight="bold")
-        ax.set_title("Year-Over-Year Comparison", fontsize=16, color=colors["text"], fontweight="bold", pad=20)
+        ax.set_ylabel(
+            "Cumulative CVEs (YTD)",
+            fontsize=12,
+            color=colors["text"],
+            fontweight="bold",
+        )
+        ax.set_title(
+            "Year-Over-Year Comparison",
+            fontsize=16,
+            color=colors["text"],
+            fontweight="bold",
+            pad=20,
+        )
         ax.tick_params(colors=colors["text"], labelsize=11)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
 
         # Grid
-        ax.grid(True, axis="y", color=colors["grid"], alpha=0.2, linestyle="-", linewidth=0.5)
+        ax.grid(
+            True,
+            axis="y",
+            color=colors["grid"],
+            alpha=0.2,
+            linestyle="-",
+            linewidth=0.5,
+        )
         ax.set_axisbelow(True)
 
         # Remove top and right spines
@@ -369,8 +419,17 @@ class YTDVisualizer:
         ax.spines["bottom"].set_color(colors["grid"])
 
         # Save figure
-        output_path = self.output_dir / f"YOY_CVE_Comparison_{current_year}_vs_{previous_year}.png"
-        plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=colors["background"], edgecolor="none")
+        output_path = (
+            self.output_dir
+            / f"YOY_CVE_Comparison_{current_year}_vs_{previous_year}.png"
+        )
+        plt.savefig(
+            output_path,
+            dpi=150,
+            bbox_inches="tight",
+            facecolor=colors["background"],
+            edgecolor="none",
+        )
         plt.close()
 
         return output_path
