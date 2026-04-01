@@ -51,6 +51,9 @@ class YTDAnalyzer:
             current_ytd, previous_ytd, current_cumulative, previous_cumulative
         )
 
+        # Load daily data for chart plotting
+        current_daily, previous_daily = self._load_daily_data()
+
         return {
             "current_year": self.current_year,
             "previous_year": self.current_year - 1,
@@ -58,6 +61,8 @@ class YTDAnalyzer:
             "previous_year_data": previous_ytd,
             "current_cumulative": current_cumulative,
             "previous_cumulative": previous_cumulative,
+            "current_daily_cumulative": current_daily,
+            "previous_daily_cumulative": previous_daily,
             "statistics": stats,
         }
 
@@ -116,6 +121,80 @@ class YTDAnalyzer:
                 continue
 
         return monthly_counts
+
+    def _load_daily_data(self) -> tuple[dict, dict]:
+        """
+        Load daily cumulative CVE counts for current and previous year.
+
+        Returns:
+            Tuple of (current_year_daily, previous_year_daily) where each is
+            a dict mapping day-of-year (1-366) to cumulative CVE count.
+        """
+        from collections import Counter
+
+        current_year = self.current_year
+        previous_year = current_year - 1
+
+        current_daily = Counter()
+        previous_daily = Counter()
+
+        try:
+            with open(self.data_file, "r") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}, {}
+
+        cves = data if isinstance(data, list) else data.get("CVE_Items", [])
+
+        for cve in cves:
+            try:
+                cve_data = cve.get("cve", cve) if isinstance(cve, dict) else cve
+                if not isinstance(cve_data, dict):
+                    continue
+                if cve_data.get("vulnStatus", "") == "Rejected":
+                    continue
+
+                date_str = (
+                    cve_data.get("published")
+                    or cve_data.get("datePublished")
+                    or cve_data.get("date")
+                )
+                if not date_str:
+                    continue
+
+                cve_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                doy = cve_date.timetuple().tm_yday
+
+                if cve_date.year == current_year:
+                    current_daily[doy] += 1
+                elif cve_date.year == previous_year:
+                    previous_daily[doy] += 1
+
+            except (KeyError, ValueError, AttributeError):
+                continue
+
+        # Convert to cumulative
+        def to_cumulative(daily_counts: Counter, max_day: int) -> dict:
+            cumulative = {}
+            total = 0
+            for day in range(1, max_day + 1):
+                total += daily_counts.get(day, 0)
+                cumulative[day] = total
+            return cumulative
+
+        # Determine how many days to include
+        today = datetime.now()
+        if today.day == 1:
+            # Report through end of previous month
+            current_max = (today - today.replace(month=1, day=1)).days
+        else:
+            current_max = today.timetuple().tm_yday
+
+        # For previous year, show same number of days for comparison
+        current_cum = to_cumulative(current_daily, current_max)
+        previous_cum = to_cumulative(previous_daily, current_max)
+
+        return current_cum, previous_cum
 
     def _calculate_cumulative(self, monthly_data: dict) -> dict:
         """

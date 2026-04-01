@@ -225,6 +225,14 @@ def generate_ytd_report() -> None:
     visualizer = YTDVisualizer(output_dir)
     through_month = analysis["statistics"]["current_month"]
 
+    # Common chart kwargs
+    chart_kwargs = dict(
+        daily_current=analysis["current_daily_cumulative"],
+        daily_previous=analysis["previous_daily_cumulative"],
+        stats=analysis["statistics"],
+        monthly_data=analysis["current_year_data"],
+    )
+
     # Create all chart formats
     logger.info("Creating YTD growth charts...")
     visualizer.create_ytd_chart(
@@ -233,6 +241,7 @@ def generate_ytd_report() -> None:
         analysis["current_year"],
         dark_mode=True,
         through_month=through_month,
+        **chart_kwargs,
     )
 
     visualizer.create_ytd_chart(
@@ -241,6 +250,7 @@ def generate_ytd_report() -> None:
         analysis["current_year"],
         dark_mode=False,
         through_month=through_month,
+        **chart_kwargs,
     )
 
     visualizer.create_square_chart(
@@ -249,6 +259,7 @@ def generate_ytd_report() -> None:
         analysis["current_year"],
         dark_mode=True,
         through_month=through_month,
+        **chart_kwargs,
     )
 
     visualizer.create_square_chart(
@@ -257,6 +268,7 @@ def generate_ytd_report() -> None:
         analysis["current_year"],
         dark_mode=False,
         through_month=through_month,
+        **chart_kwargs,
     )
 
     visualizer.create_yoy_comparison(
