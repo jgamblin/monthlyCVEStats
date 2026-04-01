@@ -1,0 +1,13 @@
+March saw 6,246 new CVEs — +55.7% over March 2025 and pushing 2026 YTD to 15,178 (+26.9% YoY). That's 169 new vulnerabilities per day.
+Median CVSS: 7.1 (75th percentile: 8.1)
+
+Top weaknesses:
+  XSS (CWE-79): 730
+  SQL Injection (CWE-89): 325
+  Missing Authorization (CWE-862): 292
+  Path Traversal (CWE-22): 231
+  PHP Remote File Inclusion (CWE-98): 221
+
+Data: NVD (excluding rejected CVEs)
+
+#CVE #VulnerabilityManagement #InfoSec #CyberSecurity
