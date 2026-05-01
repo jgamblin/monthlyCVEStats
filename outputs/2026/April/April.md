@@ -1,0 +1,38 @@
+# CVE Report - April 2026
+
+**Generated:** 2026-05-01 07:48:49
+
+## Summary
+
+- **Month**: April
+- **Year**: 2026
+- **Total CVEs**: 5820
+- **Generated**: 2026-05-01 07:48:49
+
+## cvss
+
+- **mean**: 6.800562817719681
+- **median**: 7.0
+- **std_dev**: 1.7373062024231247
+- **min**: 0.0
+- **max**: 10.0
+- **percentile_25**: 5.5
+- **percentile_75**: 8.0
+
+## cna
+
+
+## cwe
+
+- **top_cwes**: {'CWE-79': 588, 'CWE-22': 238, 'CWE-862': 235, 'CWE-89': 218, 'CWE-74': 207, 'CWE-918': 179, 'CWE-416': 173, 'CWE-77': 160, 'CWE-284': 148, 'CWE-119': 137}
+- **total_unique_cwes**: 326
+
+## daily
+
+
+## monthly_trend
+
+
+## growth
+
+

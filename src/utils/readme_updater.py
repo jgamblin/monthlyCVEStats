@@ -7,6 +7,7 @@ data from the most recent monthly report.
 
 import calendar
 import json
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -99,10 +100,9 @@ def extract_stats(report: dict) -> dict | None:
         # Handle nested "data" structure
         data = report.get("data", report)
         summary = data.get("Summary", {})
-        cvss_stats = data.get("CVSS Statistics", {})
+        cvss_stats = data.get("CVSS Statistics") or data.get("cvss") or {}
 
         total_cves = summary.get("Total CVEs", 0)
-        # Use "mean" field for average CVSS (it's the mean average)
         avg_cvss = cvss_stats.get("mean", 0) if cvss_stats else 0
 
         # Calculate average CVEs per day using actual days in the report month
@@ -129,13 +129,10 @@ def extract_stats(report: dict) -> dict | None:
 
 def update_readme_file(readme_path: Path, stats: dict) -> None:
     """
-    Update placeholders in README.md with actual statistics.
+    Update statistics in README.md with actual values.
 
-    Replaces:
-    - LAST_UPDATE_DATE with the report date
-    - TOTAL_CVES with the total count
-    - AVG_CVES_PER_DAY with the average
-    - AVG_CVSS_SCORE with the average CVSS
+    Uses regex to find and replace existing values in the badge and stats table
+    so the updater works on subsequent runs (not just the first placeholder run).
 
     Args:
         readme_path: Path to README.md
@@ -143,10 +140,30 @@ def update_readme_file(readme_path: Path, stats: dict) -> None:
     """
     content = readme_path.read_text()
 
-    # Replace placeholders
-    content = content.replace("LAST_UPDATE_DATE", stats["update_date"])
-    content = content.replace("TOTAL_CVES", stats["total_cves"])
-    content = content.replace("AVG_CVES_PER_DAY", stats["avg_cves_per_day"])
-    content = content.replace("AVG_CVSS_SCORE", stats["avg_cvss_score"])
+    content = re.sub(
+        r"(Data%20Updated-)[^)]+(-blue)",
+        rf"\g<1>{stats['update_date']}\2",
+        content,
+    )
+    content = re.sub(
+        r"(Current Statistics \()[^)]+(\))",
+        rf"\g<1>{stats['update_date']}\2",
+        content,
+    )
+    content = re.sub(
+        r"(\*\*Total CVEs\*\* \| )\S+",
+        rf"\g<1>{stats['total_cves']}",
+        content,
+    )
+    content = re.sub(
+        r"(\*\*Average CVEs/Day\*\* \| )\S+",
+        rf"\g<1>{stats['avg_cves_per_day']}",
+        content,
+    )
+    content = re.sub(
+        r"(\*\*Average CVSS Score\*\* \| )\S+",
+        rf"\g<1>{stats['avg_cvss_score']}",
+        content,
+    )
 
     readme_path.write_text(content)
