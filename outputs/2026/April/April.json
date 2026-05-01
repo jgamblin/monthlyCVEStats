@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-01T07:48:49.585475",
+  "generated_at": "2026-05-01T13:38:15.455228",
   "data": {
     "Summary": {
       "Month": "April",
       "Year": 2026,
       "Total CVEs": 5820,
-      "Generated": "2026-05-01 07:48:49"
+      "Generated": "2026-05-01 13:38:15"
     },
     "cvss": {
       "mean": 6.800562817719681,
