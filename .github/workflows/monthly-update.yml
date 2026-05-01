@@ -2,9 +2,8 @@ name: Monthly CVE Update
 
 on:
   schedule:
-    # 13:00 UTC = 7:00 AM CST (winter) / 8:00 AM CDT (summer)
-    # This is the optimal time that catches the early morning in Central Time
-    - cron: "0 13 1 * *" # 1st of every month at 13:00 UTC
+    # 10:00 UTC = 5:00 AM CDT (summer) / 4:00 AM CST (winter)
+    - cron: "0 10 1 * *"
 
   # Allow manual trigger if needed
   workflow_dispatch:
@@ -85,6 +84,7 @@ jobs:
           name: "${{ steps.date.outputs.month_name }} ${{ steps.date.outputs.year }} CVE Report"
           bodyFile: outputs/${{ steps.date.outputs.year }}/post.txt
           artifacts: "outputs/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month_name }}/*,outputs/${{ steps.date.outputs.year }}/*.png,outputs/${{ steps.date.outputs.year }}/post.txt,outputs/${{ steps.date.outputs.year }}/enriched_post.txt"
+          skipIfReleaseExists: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Report failure
