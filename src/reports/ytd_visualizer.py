@@ -123,6 +123,7 @@ class YTDVisualizer:
         daily_previous: dict = None,
         stats: dict = None,
         monthly_data: dict = None,
+        previous_monthly_data: dict = None,
     ) -> Path:
         """
         Create dashboard-style YTD growth chart with stat cards.
@@ -412,12 +413,13 @@ class YTDVisualizer:
             if non_zero:
                 peak_m = max(non_zero, key=non_zero.get)
                 low_m = min(non_zero, key=non_zero.get)
-                # Highest growth month
+                # Highest YoY growth month (current vs same month prior year)
                 best_growth_m = None
-                best_growth_pct = 0
-                for m in range(2, through_month + 1):
-                    prev = month_counts.get(m - 1, 0)
-                    if prev > 0:
+                best_growth_pct = float("-inf")
+                prev_monthly = previous_monthly_data or {}
+                for m in range(1, through_month + 1):
+                    prev = prev_monthly.get(m, 0)
+                    if prev > 0 and month_counts.get(m, 0) > 0:
                         g = (month_counts[m] - prev) / prev * 100
                         if g > best_growth_pct:
                             best_growth_pct = g
@@ -429,7 +431,7 @@ class YTDVisualizer:
                 ]
                 if best_growth_m:
                     footer_parts.append(
-                        f"Highest Monthly Growth: {calendar.month_abbr[best_growth_m]} ({best_growth_pct:+.1f}%)"
+                        f"Highest YoY Growth: {calendar.month_abbr[best_growth_m]} ({best_growth_pct:+.1f}%)"
                     )
 
                 fig.text(
@@ -481,6 +483,7 @@ class YTDVisualizer:
         daily_previous: dict = None,
         stats: dict = None,
         monthly_data: dict = None,
+        previous_monthly_data: dict = None,
     ) -> Path:
         """Create square format (1:1) dashboard chart for social media."""
         # Reuse landscape chart with square dimensions
@@ -728,10 +731,11 @@ class YTDVisualizer:
                 peak_m = max(non_zero, key=non_zero.get)
                 low_m = min(non_zero, key=non_zero.get)
                 best_growth_m = None
-                best_growth_pct = 0
-                for m in range(2, through_month + 1):
-                    prev = month_counts.get(m - 1, 0)
-                    if prev > 0:
+                best_growth_pct = float("-inf")
+                prev_monthly = previous_monthly_data or {}
+                for m in range(1, through_month + 1):
+                    prev = prev_monthly.get(m, 0)
+                    if prev > 0 and month_counts.get(m, 0) > 0:
                         g = (month_counts[m] - prev) / prev * 100
                         if g > best_growth_pct:
                             best_growth_pct = g
@@ -743,7 +747,7 @@ class YTDVisualizer:
                 ]
                 if best_growth_m:
                     footer_parts.append(
-                        f"Highest Growth: {calendar.month_abbr[best_growth_m]} ({best_growth_pct:+.1f}%)"
+                        f"Highest YoY Growth: {calendar.month_abbr[best_growth_m]} ({best_growth_pct:+.1f}%)"
                     )
 
                 fig.text(

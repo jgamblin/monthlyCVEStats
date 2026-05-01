@@ -231,6 +231,7 @@ def generate_ytd_report() -> None:
         daily_previous=analysis["previous_daily_cumulative"],
         stats=analysis["statistics"],
         monthly_data=analysis["current_year_data"],
+        previous_monthly_data=analysis["previous_year_data"],
     )
 
     # Create all chart formats
