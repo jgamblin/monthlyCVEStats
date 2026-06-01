@@ -1,12 +1,12 @@
-April 2026 CVE Growth Report:
+May 2026 CVE Growth Report:
 
-YTD (April):
-► 20,991 total CVEs (+31.2% vs 2025 YTD)
-► 175 new vulnerabilities per day
-► +4,996 more CVEs than 2025 through April
+YTD (May):
+► 27,937 total CVEs (+39.9% vs 2025 YTD)
+► 185 new vulnerabilities per day
+► +7,961 more CVEs than 2025 through May
 
-April alone:
-► 5,820 CVEs (+44.3% vs April 2025)
+May alone:
+► 6,952 CVEs (+74.7% vs May 2025)
 
 Context:
-After the CVE volume in April 2025, April is tracking at +44.3% — pushing YTD growth from 31.2%.
+After the CVE volume in May 2025, May is tracking at +74.7% — pushing YTD growth from 39.9%.
