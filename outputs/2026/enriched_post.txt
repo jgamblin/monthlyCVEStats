@@ -1,12 +1,12 @@
-May saw 6,952 new CVEs — +74.7% over May 2025 and pushing 2026 YTD to 27,937 (+39.9% YoY). That's 185 new vulnerabilities per day.
-Median CVSS: 7.1 (75th percentile: 8.1)
+June saw 7,454 new CVEs — +102.5% over June 2025 and pushing 2026 YTD to 35,365 (+49.5% YoY). That's 195 new vulnerabilities per day.
+Median CVSS: 7.4 (75th percentile: 8.2)
 
 Top weaknesses:
-  XSS (CWE-79): 571
-  SQL Injection (CWE-89): 280
-  NVD-CWE-noinfo (NVD-CWE-noinfo): 258
-  Missing Authorization (CWE-862): 253
-  Use After Free (CWE-416): 229
+  XSS (CWE-79): 617
+  Missing Authorization (CWE-862): 327
+  Use After Free (CWE-416): 320
+  SQL Injection (CWE-89): 283
+  CWE-284 (CWE-284): 269
 
 Data: NVD (excluding rejected CVEs)
 

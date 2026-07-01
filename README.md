@@ -1,6 +1,6 @@
 # 📊 Monthly CVE Statistics
 
-[![Data Updated](https://img.shields.io/badge/Data%20Updated-June 01, 2026-blue)](https://nvd.nist.gov/)
+[![Data Updated](https://img.shields.io/badge/Data%20Updated-July 01, 2026-blue)](https://nvd.nist.gov/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![NVD](https://img.shields.io/badge/Source-NVD-orange)](https://nvd.nist.gov/)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
@@ -14,13 +14,13 @@ Reports are **generated automatically on the 1st of each month at 7:00 AM Centra
 
 ---
 
-## 🔥 Current Statistics (June 01, 2026)
+## 🔥 Current Statistics (July 01, 2026)
 
 | Metric | Value |
 |--------|-------|
-| **Total CVEs** | 6,952 |
-| **Average CVEs/Day** | 224.26 |
-| **Average CVSS Score** | 6.86 |
+| **Total CVEs** | 7,454 |
+| **Average CVEs/Day** | 248.47 |
+| **Average CVSS Score** | 7.08 |
 
 > **Note:** Statistics are automatically updated every month. See [latest reports](outputs/) for detailed analysis.
 
