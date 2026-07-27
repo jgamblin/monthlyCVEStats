@@ -141,21 +141,35 @@ def extract_stats(report: dict) -> Optional[dict]:
         month_name = summary.get("Month")
         year = int(summary.get("Year", datetime.now().year))
 
-        if month_name and isinstance(month_name, str):
-            month_num = list(calendar.month_name).index(month_name)
-        else:
-            month_num = datetime.now().month
-            month_name = calendar.month_name[month_num]
-        days_in_month = calendar.monthrange(year, month_num)[1]
+        # Refuse rather than guess. Falling back to the current month would
+        # label the block with a month the numbers do not belong to, which is
+        # worse than not updating it: an annual report or one written by an
+        # older code path has no Month at all.
+        if not (month_name and isinstance(month_name, str)):
+            logger.error("Report has no Summary.Month; refusing to guess the period")
+            return None
 
-        avg_per_day = int(total_cves) / days_in_month if days_in_month else 0
+        month_num = list(calendar.month_name).index(month_name)
+
+        # Divide by days elapsed, not days in the month. A manual mid-month run
+        # would otherwise spread a part-month total across the whole month and
+        # understate the daily average, and claim data through a date that has
+        # not happened yet.
+        now = datetime.now()
+        in_progress = (year, month_num) == (now.year, now.month)
+        days_elapsed = (
+            now.day if in_progress else calendar.monthrange(year, month_num)[1]
+        )
+
+        avg_per_day = int(total_cves) / days_elapsed if days_elapsed else 0
         mean_cvss = cvss_stats.get("mean") or 0
         median_cvss = cvss_stats.get("median") or 0
 
         return {
             "month": month_name,
             "year": str(year),
-            "through_date": f"{month_name} {days_in_month}, {year}",
+            "in_progress": in_progress,
+            "through_date": f"{month_name} {days_elapsed}, {year}",
             "total_cves": f"{int(total_cves):,}",
             "avg_cves_per_day": f"{avg_per_day:,.1f}",
             "mean_cvss": f"{float(mean_cvss):.2f}",
@@ -172,9 +186,13 @@ def render_stats_block(stats: dict) -> str:
     The whole table lives inside the block, header included: an HTML comment
     between a table header and its rows would break the table.
     """
+    heading = f"{stats['month']} {stats['year']}"
+    if stats.get("in_progress"):
+        heading += " (in progress)"
+
     return "\n".join(
         [
-            f"| {stats['month']} {stats['year']} | |",
+            f"| {heading} | |",
             "|---|---|",
             f"| CVEs published | {stats['total_cves']} |",
             f"| Average per day | {stats['avg_cves_per_day']} |",

@@ -135,3 +135,58 @@ def test_month_extremes_handles_no_data(tmp_path):
     visualizer = YTDVisualizer(tmp_path)
     assert visualizer._month_extremes({}, {}, 5) == ""
     assert visualizer._month_extremes({1: 0, 2: 0}, {}, 2) == ""
+
+
+def _freeze(monkeypatch, year, month, day):
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(year, month, day, 12, 0, 0)
+
+    monkeypatch.setattr("src.reports.ytd_visualizer.datetime", FakeDatetime)
+
+
+def test_period_end_on_the_first_covers_the_whole_prior_month(tmp_path, monkeypatch):
+    """The scheduled run reports on a month that has finished."""
+    _freeze(monkeypatch, 2026, 7, 1)
+    visualizer = YTDVisualizer(tmp_path)
+    assert visualizer._period_end(6) == (2026, 30, True)
+    assert visualizer._get_month_name_for_last_day(6) == "June 30, 2026"
+
+
+def test_period_end_on_jan_first_rolls_back_a_year(tmp_path, monkeypatch):
+    _freeze(monkeypatch, 2026, 1, 1)
+    visualizer = YTDVisualizer(tmp_path)
+    assert visualizer._period_end(12) == (2025, 31, True)
+
+
+def test_period_end_mid_month_stops_at_today(tmp_path, monkeypatch):
+    """A manual run on the 27th covers 27 days, not the month's full length."""
+    _freeze(monkeypatch, 2026, 7, 27)
+    visualizer = YTDVisualizer(tmp_path)
+    assert visualizer._period_end(7) == (2026, 27, False)
+    assert visualizer._get_month_name_for_last_day(7) == "July 27, 2026"
+
+
+def test_incomplete_month_is_not_ranked_busiest(tmp_path, monkeypatch, chart_args):
+    """Partial July outcounts complete June, but must not be called the busiest."""
+    _freeze(monkeypatch, 2026, 7, 27)
+    monthly = {1: 4309, 2: 4616, 3: 6234, 4: 5811, 5: 6938, 6: 7947, 7: 8012}
+    previous = {m: 3000 for m in range(1, 8)}
+    args = dict(
+        chart_args,
+        through_month=7,
+        monthly_data=monthly,
+        previous_monthly_data=previous,
+    )
+
+    visualizer = YTDVisualizer(tmp_path)
+    path = visualizer.create_chart(ratio="wide", **args)
+    assert path.exists()
+
+    # The ranking the chart footer is built from stops at the last whole month.
+    summary = visualizer._month_extremes(monthly, previous, 6)
+    assert "Busiest month: Jun (7,947)" in summary
+    assert "Jul" not in summary

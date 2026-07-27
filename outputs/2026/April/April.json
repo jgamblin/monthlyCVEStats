@@ -1,39 +1,90 @@
 {
-  "generated_at": "2026-05-01T13:38:15.455228",
+  "generated_at": "2026-07-27T14:14:05.134182",
   "data": {
     "Summary": {
       "Month": "April",
       "Year": 2026,
-      "Total CVEs": 5820,
-      "Generated": "2026-05-01 13:38:15"
+      "Total CVEs": 5811
     },
     "cvss": {
-      "mean": 6.800562817719681,
-      "median": 7.0,
-      "std_dev": 1.7373062024231247,
+      "scored_cves": 5674,
+      "unscored_cves": 137,
+      "mean": 6.8,
+      "median": 6.9,
+      "std_dev": 1.73,
       "min": 0.0,
       "max": 10.0,
       "percentile_25": 5.5,
-      "percentile_75": 8.0
+      "percentile_75": 7.8,
+      "severity_counts": {
+        "None": 2,
+        "Low": 275,
+        "Medium": 2565,
+        "High": 2234,
+        "Critical": 598
+      }
     },
-    "cna": {},
+    "cna": {
+      "top_cnas": {
+        "security-advisories@github.com": 1236,
+        "cna@vuldb.com": 786,
+        "disclosure@vulncheck.com": 516,
+        "cve@mitre.org": 437,
+        "416baaa9-dc9f-4396-8d5f-8c081fb06d67": 378,
+        "security@wordfence.com": 296,
+        "audit@patchstack.com": 215,
+        "secure@microsoft.com": 181,
+        "chrome-cve-admin@google.com": 144,
+        "secalert_us@oracle.com": 102
+      },
+      "total_unique_cnas": 172
+    },
     "cwe": {
       "top_cwes": {
-        "CWE-79": 588,
-        "CWE-22": 238,
+        "CWE-79": 591,
+        "CWE-22": 239,
         "CWE-862": 235,
         "CWE-89": 218,
         "CWE-74": 207,
-        "CWE-918": 179,
-        "CWE-416": 173,
+        "CWE-416": 188,
+        "CWE-918": 178,
         "CWE-77": 160,
         "CWE-284": 148,
         "CWE-119": 137
       },
-      "total_unique_cwes": 326
+      "total_unique_cwes": 327
     },
-    "daily": {},
-    "monthly_trend": {},
-    "growth": {}
+    "daily": {
+      "days_with_cves": 30,
+      "avg_cves_per_day": 193.7,
+      "busiest_day": "2026-04-08",
+      "busiest_day_count": 486,
+      "quietest_day": "2026-04-19",
+      "quietest_day_count": 22
+    },
+    "monthly_trend": {
+      "monthly_counts": {
+        "2026-01": 4309,
+        "2026-02": 4616,
+        "2026-03": 6234,
+        "2026-04": 5811
+      },
+      "avg_monthly": 5242.5,
+      "busiest_month": "2026-03",
+      "busiest_month_count": 6234,
+      "latest_month": "2026-04",
+      "latest_month_count": 5811,
+      "prior_month_count": 6234,
+      "month_over_month_percent": -6.8
+    },
+    "growth": {
+      "period": "Monthly",
+      "periods_compared": 4,
+      "avg_growth_percent": 11.8,
+      "fastest_growth_period": "2026-03",
+      "fastest_growth_percent": 35.1,
+      "slowest_growth_period": "2026-04",
+      "slowest_growth_percent": -6.8
+    }
   }
 }

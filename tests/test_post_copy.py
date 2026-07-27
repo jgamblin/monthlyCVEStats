@@ -132,3 +132,78 @@ def test_enriched_post_translates_cwe_placeholders(enriched):
     """'NVD-CWE-noinfo' is an artifact, not a weakness name."""
     assert "Not specified (NVD-CWE-noinfo)" in enriched
     assert "XSS (CWE-79): 571" in enriched
+
+
+def test_in_progress_month_does_not_claim_to_have_closed(analyzer, monkeypatch):
+    """A mid-month run reports on a month still running.
+
+    Saying it "closed" is false, and quoting a change against the prior year
+    compares a part-month to a whole one.
+    """
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 7, 27, 14, 0, 0)
+
+    monkeypatch.setattr("src.analysis.ytd_growth.datetime", FakeDatetime)
+
+    payload = analysis()
+    payload["statistics"]["current_month"] = 7  # July, and it is only the 27th
+    payload["statistics"]["month_percent"] = 112.2
+
+    text = analyzer.get_summary_text(payload)
+
+    assert "closed at" not in text
+    assert "still running" in text
+    assert "through July 27" in text
+    # The misleading part-month-vs-whole-month change is withheld.
+    assert "112.2" not in text
+    # The year-to-date figures are still fair game.
+    assert "27,937" in text
+
+
+def test_completed_month_says_closed(analyzer, monkeypatch):
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 6, 1, 5, 0, 0)
+
+    monkeypatch.setattr("src.analysis.ytd_growth.datetime", FakeDatetime)
+
+    text = analyzer.get_summary_text(analysis())  # reporting on May
+    assert "May 2026 closed at 6,952 published CVEs" in text
+    assert "+74.7%" in text
+    assert "still running" not in text
+
+
+def test_in_progress_claim_ignores_the_part_month(analyzer, monkeypatch):
+    """A part-month dip must not flip the claim to a slowdown."""
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 7, 3, 5, 0, 0)
+
+    monkeypatch.setattr("src.analysis.ytd_growth.datetime", FakeDatetime)
+
+    payload = analysis(yoy_percent=59.9, month_percent=-88.0)  # 3 days into July
+    payload["statistics"]["current_month"] = 7
+    claim = analyzer.get_summary_text(payload).splitlines()[0]
+
+    assert "not a trend reversal" not in claim
+    assert "baseline" in claim
+
+
+def test_unmapped_cwe_renders_its_id_once(analyzer):
+    """An id with no friendly name must not print as 'CWE-9999 (CWE-9999)'."""
+    report = {"cwe": {"top_cwes": {"CWE-9999": 42, "CWE-79": 10}}}
+    text = analyzer.get_enriched_text(analysis(), report)
+    assert "  CWE-9999: 42" in text
+    assert "CWE-9999 (CWE-9999)" not in text
+    # Mapped ids still show both.
+    assert "XSS (CWE-79): 10" in text

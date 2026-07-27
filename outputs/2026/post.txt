@@ -1,8 +1,8 @@
 CVE growth has stopped looking like a spike and started looking like the baseline.
 
-May 2026 closed at 6,952 published CVEs, +74.7% against May 2025.
+July 2026 is at 8,012 published CVEs through July 27, with the month still running.
 
-That puts 2026 at 27,937 CVEs year to date, +39.9% year over year, and 185 new CVEs every day. Against the same point in 2025 the gap is +7,961 CVEs.
+That puts 2026 at 43,867 CVEs year to date, +59.9% year over year, and 211 new CVEs every day. Against the same point in 2025 the gap is +16,441 CVEs.
 
 If this is the new baseline, what gives out first in your triage?
 

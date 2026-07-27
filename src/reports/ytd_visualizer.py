@@ -64,15 +64,26 @@ class YTDVisualizer:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_month_name_for_last_day(self, through_month: int) -> str:
-        """The last date of the reporting period, e.g. 'May 31, 2026'."""
+    def _period_end(self, through_month: int) -> tuple[int, int, bool]:
+        """(year, last day covered, whether that month has finished).
+
+        The scheduled run fires on the 1st and reports on the completed previous
+        month. A manual mid-month run covers only part of the current month, and
+        must not label the chart with the month's final day or rank a part-month
+        against whole ones.
+        """
         today = datetime.now()
-        year = today.year
         if today.day == 1:
             year = today.year if today.month > 1 else today.year - 1
-        last_day = calendar.monthrange(year, through_month)[1]
-        month_name = calendar.month_name[through_month]
-        return f"{month_name} {last_day}, {year}"
+            return year, calendar.monthrange(year, through_month)[1], True
+        if through_month == today.month:
+            return today.year, today.day, False
+        return today.year, calendar.monthrange(today.year, through_month)[1], True
+
+    def _get_month_name_for_last_day(self, through_month: int) -> str:
+        """The last date actually covered, e.g. 'May 31, 2026'."""
+        year, last_day, _ = self._period_end(through_month)
+        return f"{calendar.month_name[through_month]} {last_day}, {year}"
 
     def create_chart(
         self,
@@ -253,8 +264,12 @@ class YTDVisualizer:
             text.set_color(colors["text"])
 
         # --- footer ---------------------------------------------------------
+        # Rank only completed months: a part-month total is not comparable to a
+        # whole one, so an in-progress month must not be called the busiest.
+        _, _, month_complete = self._period_end(through_month)
+        ranked_through = through_month if month_complete else through_month - 1
         footer = self._month_extremes(
-            monthly_data, previous_monthly_data, through_month
+            monthly_data, previous_monthly_data, ranked_through
         )
         if footer:
             fig.text(

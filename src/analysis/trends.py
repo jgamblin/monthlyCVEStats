@@ -7,6 +7,9 @@ import pandas as pd
 
 from src.analysis.statistics import DATE_COLUMNS, find_column
 
+# Pandas period codes are not report copy.
+_PERIOD_LABELS = {"D": "Daily", "M": "Monthly", "Y": "Yearly"}
+
 
 class TrendAnalyzer:
     """Analyze trends in CVE data.
@@ -28,7 +31,11 @@ class TrendAnalyzer:
             )
             return None
         dates = pd.to_datetime(df[date_col], errors="coerce", utc=True).dropna()
-        return dates if not dates.empty else None
+        if dates.empty:
+            return None
+        # to_period() drops the timezone with a warning. Drop it here instead so
+        # the bucketing is explicitly on UTC wall time.
+        return dates.dt.tz_convert(None)
 
     def monthly_trend(self, df: pd.DataFrame) -> dict:
         """Analyze month-over-month trends.
@@ -138,7 +145,7 @@ class TrendAnalyzer:
             slowest = growth.idxmin()
 
             return {
-                "period": period,
+                "period": _PERIOD_LABELS.get(period, period),
                 "periods_compared": int(len(counts)),
                 "avg_growth_percent": round(float(growth.mean()), 1),
                 "fastest_growth_period": str(fastest),

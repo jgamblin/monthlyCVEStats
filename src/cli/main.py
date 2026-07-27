@@ -2,6 +2,7 @@
 
 import sys
 from datetime import datetime
+from typing import Any, Optional
 
 try:
     import typer
@@ -56,6 +57,84 @@ def download_data(
         sys.exit(1)
 
 
+def run_analysis(year: int, month: Optional[int] = None) -> bool:
+    """Run the full analysis for one month, or a whole year when month is None.
+
+    Shared by ``run-monthly`` and ``generate-reports`` so both produce the same
+    report. They write to the same filenames, so a thinner second code path here
+    means one command silently guts the other's output.
+
+    Args:
+        year: Year to analyze
+        month: Month to report on, or None for the full year
+
+    Returns:
+        True if a report was written
+    """
+    period = f"{year}-{month:02d}" if month else str(year)
+    logger.info(f"Analyzing CVE data for {period}")
+
+    # Load the whole year, then slice the reporting month out of it. The trend
+    # analyses need more than one month to say anything, so they get the year.
+    processor = DataProcessor(Config.NVD_DATA_FILE)
+    df_year = processor.load_to_dataframe(year=year)
+
+    if df_year.empty:
+        logger.warning("No CVE data found for %d", year)
+        return False
+
+    # Three scopes: the reporting month for the month's own statistics, the year
+    # through that month for the trend sections, and the raw year for neither.
+    # The trend sections must stop at the reporting month, or a report on a
+    # completed month picks up the in-progress one after it and presents a
+    # partial total as that month's figure.
+    if month is None or "published" not in df_year.columns:
+        if month is not None:
+            logger.warning("No 'published' column; reporting on the full year")
+        df = df_ytd = df_year
+    else:
+        months = df_year["published"].dt.month
+        df = df_year[months == month]
+        df_ytd = df_year[months <= month]
+
+    if df.empty:
+        logger.warning("No CVE data found for %s", period)
+        return False
+
+    logger.info(f"Loaded {len(df)} CVE records for {period}")
+
+    stats_analyzer = StatisticsAnalyzer()
+    trend_analyzer = TrendAnalyzer()
+
+    analysis_results = {
+        "cvss": stats_analyzer.analyze_cvss_distribution(df),
+        "cna": stats_analyzer.analyze_by_cna(df),
+        "cwe": stats_analyzer.analyze_by_cwe(df),
+        "daily": stats_analyzer.daily_distribution(df),
+        "monthly_trend": trend_analyzer.monthly_trend(df_ytd),
+        "growth": trend_analyzer.growth_rate(df_ytd),
+    }
+
+    logger.info(f"✓ Analysis complete: {len(df)} CVEs processed")
+
+    # A manual run can land inside the month it is reporting on. Say so on the
+    # page rather than presenting a part-month total as the month's figure.
+    source_note = "NVD, excluding rejected CVEs"
+    now = datetime.now()
+    if month is not None and (year, month) == (now.year, now.month):
+        month_name = datetime(year, month, 1).strftime("%B")
+        source_note += (
+            f". {month_name} {year} is still in progress: "
+            f"data through {month_name} {now.day}"
+        )
+        logger.warning(
+            "Reporting on %s %d while it is still in progress", month_name, year
+        )
+
+    generate_reports_internal(year, month, df, analysis_results, source_note)
+    return True
+
+
 @app.command()
 def run_monthly() -> None:
     """Run monthly CVE analysis."""
@@ -65,59 +144,8 @@ def run_monthly() -> None:
     # Verify timezone
     verify_central_time()
 
-    # Get current month info
     year, month = Config.get_current_month_info()
-    logger.info(f"Analyzing CVE data for {year}-{month:02d}")
-
-    # Load the whole year, then slice the reporting month out of it. The trend
-    # analyses need more than one month to say anything, so they get the year.
-    processor = DataProcessor(Config.NVD_DATA_FILE)
-    df_year = processor.load_to_dataframe(year=year)
-
-    if df_year.empty:
-        logger.warning("No CVE data found for %d", year)
-        return
-
-    if "published" in df_year.columns:
-        df = df_year[df_year["published"].dt.month == month]
-    else:
-        logger.warning("No 'published' column; reporting on the full year")
-        df = df_year
-
-    if df.empty:
-        logger.warning("No CVE data found for the specified period")
-        return
-
-    logger.info(f"Loaded {len(df)} CVE records for {year}-{month:02d}")
-
-    # Run analyses
-    stats_analyzer = StatisticsAnalyzer()
-    trend_analyzer = TrendAnalyzer()
-
-    cvss_stats = stats_analyzer.analyze_cvss_distribution(df)
-    cna_stats = stats_analyzer.analyze_by_cna(df)
-    cwe_stats = stats_analyzer.analyze_by_cwe(df)
-    daily_dist = stats_analyzer.daily_distribution(df)
-
-    monthly_trend = trend_analyzer.monthly_trend(df_year)
-    growth = trend_analyzer.growth_rate(df_year)
-
-    logger.info(f"✓ Analysis complete: {len(df)} CVEs processed")
-
-    # Generate reports
-    generate_reports_internal(
-        year,
-        month,
-        df,
-        {
-            "cvss": cvss_stats,
-            "cna": cna_stats,
-            "cwe": cwe_stats,
-            "daily": daily_dist,
-            "monthly_trend": monthly_trend,
-            "growth": growth,
-        },
-    )
+    run_analysis(year, month)
 
 
 @app.command()
@@ -125,52 +153,12 @@ def generate_reports(
     year: int = typer.Option(None, "--year", help="Year to generate reports for"),
     month: int = typer.Option(None, "--month", help="Month to generate reports for"),
 ) -> None:
-    """Generate reports for specified period."""
+    """Generate reports for a specific month, or a whole year with no --month."""
     if year is None:
         year, month = Config.get_current_month_info()
 
-    month_str = f"{month:02d}" if month else "all months"
-    logger.info(f"Generating reports for {year}-{month_str}")
     Config.ensure_directories()
-
-    processor = DataProcessor(Config.NVD_DATA_FILE)
-    df = processor.load_to_dataframe(year=year, month=month)
-
-    if df.empty:
-        logger.warning("No CVE data found")
-        return
-
-    # Run quick analysis
-    stats_analyzer = StatisticsAnalyzer()
-    cvss_stats = stats_analyzer.analyze_cvss_distribution(df)
-
-    output_dir = Config.get_report_output_dir(year, month)
-    month_name = datetime(year, month, 1).strftime("%B") if month else "Full Year"
-
-    report_generator = ReportGenerator(output_dir)
-
-    # Generate markdown report
-    report_data = {
-        "Summary": {
-            "Total CVEs": len(df),
-            "Date": datetime.now().strftime("%Y-%m-%d"),
-        },
-        "CVSS Statistics": cvss_stats,
-    }
-
-    report_generator.generate_markdown(
-        title=f"CVE Report - {month_name} {year}",
-        data=report_data,
-        filename=f"{month_name}.md" if month else "Annual.md",
-    )
-
-    # Generate JSON report
-    report_generator.generate_json(
-        data=report_data,
-        filename=f"{month_name}.json" if month else "Annual.json",
-    )
-
-    logger.info(f"✓ Reports generated in {output_dir}")
+    run_analysis(year, month)
 
 
 @app.command()
@@ -302,33 +290,39 @@ def generate_ytd_report() -> None:
 
 
 def generate_reports_internal(
-    year: int, month: int, df, analysis_results: dict
+    year: int,
+    month: Optional[int],
+    df,
+    analysis_results: dict,
+    source_note: str = "NVD, excluding rejected CVEs",
 ) -> None:
-    """Internal helper to generate reports."""
+    """Write the Markdown and JSON reports for a month, or a year if month is None."""
     output_dir = Config.get_report_output_dir(year, month)
-    month_name = datetime(year, month, 1).strftime("%B")
-
     report_generator = ReportGenerator(output_dir)
 
-    report_data = {
-        "Summary": {
-            "Month": month_name,
-            "Year": year,
-            "Total CVEs": len(df),
-            "Generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        },
-        **analysis_results,
-    }
+    summary: dict[str, Any]
+    if month is None:
+        stem = "Annual"
+        title = f"CVE Report - {year}"
+        summary = {"Year": year, "Total CVEs": len(df)}
+    else:
+        stem = datetime(year, month, 1).strftime("%B")
+        title = f"CVE Report - {stem} {year}"
+        # readme_updater requires Month and Year to label the stats block.
+        summary = {"Month": stem, "Year": year, "Total CVEs": len(df)}
+
+    report_data = {"Summary": summary, **analysis_results}
 
     report_generator.generate_markdown(
-        title=f"CVE Report - {month_name} {year}",
+        title=title,
         data=report_data,
-        filename=f"{month_name}.md",
+        filename=f"{stem}.md",
+        source_note=source_note,
     )
 
     report_generator.generate_json(
         data=report_data,
-        filename=f"{month_name}.json",
+        filename=f"{stem}.json",
     )
 
     logger.info(f"✓ Reports written to {output_dir}")

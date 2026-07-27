@@ -57,6 +57,12 @@ def test_extract_stats_rejects_empty_report():
     assert extract_stats({"data": {"Summary": {}}}) is None
 
 
+def test_extract_stats_refuses_to_guess_the_month():
+    """An annual report has no Month; labelling it with today's is worse than not."""
+    no_month = {"data": {"Summary": {"Year": 2026, "Total CVEs": 6952}}}
+    assert extract_stats(no_month) is None
+
+
 def test_update_readme_file_replaces_block(tmp_path):
     readme = tmp_path / "README.md"
     readme.write_text(
@@ -133,3 +139,45 @@ def test_update_readme_reports_failure_when_no_reports(tmp_path):
     readme.write_text(f"{START_MARKER}\n{END_MARKER}\n")
     empty = tmp_path / "nothing"
     assert update_readme(report_dir=empty, readme_path=readme) is False
+
+
+def _freeze(monkeypatch, year, month, day):
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(year, month, day, 12, 0, 0)
+
+    monkeypatch.setattr("src.utils.readme_updater.datetime", FakeDatetime)
+
+
+def test_completed_month_divides_by_the_whole_month(monkeypatch):
+    _freeze(monkeypatch, 2026, 6, 1)  # reporting on May, which has finished
+    stats = extract_stats(SAMPLE_REPORT)
+    assert stats["in_progress"] is False
+    assert stats["avg_cves_per_day"] == "224.3"  # 6952 / 31
+    assert stats["through_date"] == "May 31, 2026"
+    assert "in progress" not in render_stats_block(stats)
+
+
+def test_in_progress_month_divides_by_days_elapsed(monkeypatch):
+    """8,012 over 27 days is 296.7 a day, not 8,012 spread across 31."""
+    _freeze(monkeypatch, 2026, 7, 27)
+    report = {
+        "data": {
+            "Summary": {"Month": "July", "Year": 2026, "Total CVEs": 8012},
+            "cvss": {"mean": 7.09, "median": 7.4},
+        }
+    }
+    stats = extract_stats(report)
+
+    assert stats["in_progress"] is True
+    assert stats["avg_cves_per_day"] == "296.7"
+    assert stats["through_date"] == "July 27, 2026"
+
+    block = render_stats_block(stats)
+    assert "July 2026 (in progress)" in block
+    assert "Data through July 27, 2026" in block
+    # Never claim data through a date that has not happened.
+    assert "July 31" not in block

@@ -283,14 +283,29 @@ class YTDAnalyzer:
         }
 
     @staticmethod
-    def _opening_claim(stats: dict) -> str:
+    def _opening_claim(stats: dict, month_complete: bool = True) -> str:
         """The arguable one-sentence opener, chosen from the shape of the data.
 
         House copy formula: open on a claim rather than a statistic, so the first
         line is something a reader can agree or disagree with.
+
+        An in-progress month's change is a part-month against a whole one, so it
+        does not get a vote: the claim rests on the year-to-date figure alone.
         """
         yoy = stats["yoy_percent"]
-        month = stats["month_percent"]
+        month = stats["month_percent"] if month_complete else 0.0
+
+        if not month_complete:
+            if yoy >= 25:
+                return (
+                    "CVE growth has stopped looking like a spike and started "
+                    "looking like the baseline."
+                )
+            if yoy > 0:
+                return "Published CVEs are still outrunning last year's pace."
+            if yoy < 0:
+                return "The CVE curve is finally bending the other way."
+            return "CVE publication is holding flat against last year."
 
         if yoy >= 25 and month > 0:
             return (
@@ -304,6 +319,20 @@ class YTDAnalyzer:
         if yoy < 0:
             return "The CVE curve is finally bending the other way."
         return "CVE publication is holding flat against last year."
+
+    def _month_is_complete(self, analysis: dict) -> bool:
+        """Whether the reporting month has actually finished.
+
+        The scheduled run fires on the 1st, so the reporting month is normally the
+        completed previous one. A manual mid-month run reports on the month still
+        in progress, and the copy has to stop claiming it closed and stop quoting
+        a change against the prior year's complete month.
+        """
+        now = datetime.now()
+        return not (
+            analysis["current_year"] == now.year
+            and analysis["statistics"]["current_month"] == now.month
+        )
 
     @staticmethod
     def _closing_question(stats: dict) -> str:
@@ -339,10 +368,25 @@ class YTDAnalyzer:
         ytd_diff = f"{stats['yoy_growth']:+,}"
         avg_per_day = f"{stats['avg_cves_per_day']:.0f}"
 
+        complete = self._month_is_complete(analysis)
+        if complete:
+            month_line = (
+                f"{current_month_name} {year} closed at {month_count} published "
+                f"CVEs, {month_pct} against {current_month_name} {previous_year}."
+            )
+        else:
+            # Quoting a change here would compare a part-month against the prior
+            # year's whole month.
+            now = datetime.now()
+            month_line = (
+                f"{current_month_name} {year} is at {month_count} published CVEs "
+                f"through {now.strftime('%B')} {now.day}, with the month still "
+                f"running."
+            )
+
         return (
-            f"{self._opening_claim(stats)}\n\n"
-            f"{current_month_name} {year} closed at {month_count} published CVEs, "
-            f"{month_pct} against {current_month_name} {previous_year}.\n\n"
+            f"{self._opening_claim(stats, complete)}\n\n"
+            f"{month_line}\n\n"
             f"That puts {year} at {ytd_total} CVEs year to date, {ytd_pct} year over "
             f"year, and {avg_per_day} new CVEs every day. Against the same point in "
             f"{previous_year} the gap is {ytd_diff} CVEs.\n\n"
@@ -398,6 +442,16 @@ class YTDAnalyzer:
             "CWE-400": "Resource Exhaustion",
             "CWE-94": "Code Injection",
             "CWE-306": "Missing Authentication",
+            "CWE-284": "Improper Access Control",
+            "CWE-287": "Improper Authentication",
+            "CWE-269": "Improper Privilege Management",
+            "CWE-522": "Insufficiently Protected Credentials",
+            "CWE-798": "Hard-coded Credentials",
+            "CWE-732": "Incorrect Permission Assignment",
+            "CWE-611": "XXE",
+            "CWE-190": "Integer Overflow",
+            "CWE-770": "Allocation Without Limits",
+            "CWE-1333": "Inefficient Regular Expression Complexity",
             "NVD-CWE-noinfo": "Not specified",
             "NVD-CWE-Other": "Other",
         }
@@ -421,14 +475,29 @@ class YTDAnalyzer:
             items = list(top_cwes.items())[:5]
             cwe_lines = "\n\nMost common weaknesses:\n"
             for cwe_id, count in items:
-                name = cwe_names.get(cwe_id, cwe_id)
-                cwe_lines += f"  {name} ({cwe_id}): {count:,}\n"
+                # Unmapped ids render once, not as "CWE-284 (CWE-284)".
+                name = cwe_names.get(cwe_id)
+                label = f"{name} ({cwe_id})" if name else cwe_id
+                cwe_lines += f"  {label}: {count:,}\n"
             cwe_lines = cwe_lines.rstrip("\n")
 
+        complete = self._month_is_complete(analysis)
+        if complete:
+            month_clause = (
+                f"{current_month_name} closed at {month_count} published CVEs, "
+                f"{month_pct} against {current_month_name} {previous_year}, which "
+                f"puts"
+            )
+        else:
+            now = datetime.now()
+            month_clause = (
+                f"{current_month_name} is at {month_count} published CVEs through "
+                f"{now.strftime('%B')} {now.day}, which puts"
+            )
+
         return (
-            f"{self._opening_claim(stats)}\n\n"
-            f"{current_month_name} closed at {month_count} published CVEs, "
-            f"{month_pct} against {current_month_name} {previous_year}, which puts "
+            f"{self._opening_claim(stats, complete)}\n\n"
+            f"{month_clause} "
             f"{year} at {ytd_total} year to date ({ytd_pct} year over year) and "
             f"{avg_day} new CVEs every day."
             f"{cvss_line}"

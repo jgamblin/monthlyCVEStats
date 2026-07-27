@@ -1,15 +1,15 @@
 CVE growth has stopped looking like a spike and started looking like the baseline.
 
-May closed at 6,952 published CVEs, +74.7% against May 2025, which puts 2026 at 27,937 year to date (+39.9% year over year) and 185 new CVEs every day.
+July is at 8,012 published CVEs through July 27, which puts 2026 at 43,867 year to date (+59.9% year over year) and 211 new CVEs every day.
 
-Median CVSS came in at 7.1, with the 75th percentile at 8.1.
+Median CVSS came in at 7.4, with the 75th percentile at 8.2.
 
 Most common weaknesses:
-  XSS (CWE-79): 571
-  SQL Injection (CWE-89): 280
-  Not specified (NVD-CWE-noinfo): 258
-  Missing Authorization (CWE-862): 253
-  Use After Free (CWE-416): 229
+  Improper Access Control (CWE-284): 665
+  XSS (CWE-79): 612
+  Missing Authorization (CWE-862): 335
+  Path Traversal (CWE-22): 250
+  Information Exposure (CWE-200): 243
 
 If this is the new baseline, what gives out first in your triage?
 
