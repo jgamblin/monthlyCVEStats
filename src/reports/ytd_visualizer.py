@@ -1,19 +1,60 @@
 """
-Create YTD growth visualizations for CVE data.
+Year-to-date CVE growth charts.
 
-Generates dashboard-style charts showing:
-- Year-to-date cumulative CVE growth (daily granularity)
-- Current year vs previous year comparison
-- Stat cards with key metrics
-- Multiple formats (landscape, square, dark/light modes)
+Built on ``src.reports.style``, the port of CVEGraphs' chart styling, so a chart
+from this repo and a chart from CVEGraphs sit together in a feed. Each chart
+renders in three aspect ratios (wide, square, portrait), in dark and light.
+
+House rule for headings: state what the chart shows, in Title Case. Never an
+argument or a verdict.
 """
 
 import calendar
-from pathlib import Path
+import logging
 from datetime import datetime
-import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
-import numpy as np
+from pathlib import Path
+from typing import Any, Optional
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+from src.reports import style  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+# Per-ratio geometry: the stat card row and the plot area. Values are figure
+# fractions, tuned so the card row clears the header subtitle, the plot area
+# clears the cards, and the x tick labels clear the footer line. Card heights
+# land near 100px at each ratio, which is what draw_stat_card is sized for.
+_GEOMETRY: dict[str, dict[str, Any]] = {
+    "wide": {  # 1600x900
+        "card_y": 0.645,
+        "card_h": 0.115,
+        "axes": (0.075, 0.185, 0.880, 0.395),
+        "footer_y": 0.105,
+        "footer_size": 9.5,
+    },
+    "square": {  # 1080x1080
+        "card_y": 0.685,
+        "card_h": 0.095,
+        "axes": (0.100, 0.155, 0.855, 0.475),
+        "footer_y": 0.088,
+        "footer_size": 8.5,
+    },
+    "portrait": {  # 1080x1350
+        "card_y": 0.735,
+        "card_h": 0.075,
+        "axes": (0.100, 0.135, 0.855, 0.545),
+        "footer_y": 0.078,
+        "footer_size": 8.5,
+    },
+}
+
+_CARD_W = 0.283
+_CARD_GAP = 0.025
+_CARD_X0 = 0.05
 
 
 class YTDVisualizer:
@@ -23,86 +64,8 @@ class YTDVisualizer:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.dark_colors = {
-            "background": "#0d1117",
-            "card_bg": "#161b22",
-            "card_border": "#30363d",
-            "grid": "#21262d",
-            "text": "#c9d1d9",
-            "text_dim": "#8b949e",
-            "current": "#58a6ff",
-            "previous": "#484f58",
-            "accent": "#3fb950",
-            "accent_secondary": "#a371f7",
-            "fill_current": "#58a6ff",
-            "fill_previous": "#484f58",
-        }
-
-        self.light_colors = {
-            "background": "#ffffff",
-            "card_bg": "#f6f8fa",
-            "card_border": "#d0d7de",
-            "grid": "#e5e7eb",
-            "text": "#1f2937",
-            "text_dim": "#6b7280",
-            "current": "#0969da",
-            "previous": "#9ca3af",
-            "accent": "#1a7f37",
-            "accent_secondary": "#8250df",
-            "fill_current": "#0969da",
-            "fill_previous": "#9ca3af",
-        }
-
-    def _draw_stat_card(self, fig, x, y, w, h, label, value, sublabel, colors):
-        """Draw a stat card on the figure."""
-        ax_card = fig.add_axes([x, y, w, h])
-        ax_card.set_xlim(0, 1)
-        ax_card.set_ylim(0, 1)
-        ax_card.set_facecolor(colors["card_bg"])
-        ax_card.axis("off")
-
-        # Border
-        for spine in ax_card.spines.values():
-            spine.set_edgecolor(colors["card_border"])
-            spine.set_linewidth(1.5)
-            spine.set_visible(True)
-
-        # Label
-        ax_card.text(
-            0.5,
-            0.82,
-            label.upper(),
-            ha="center",
-            va="center",
-            fontsize=9,
-            color=colors["text_dim"],
-            fontweight="bold",
-        )
-        # Value
-        ax_card.text(
-            0.5,
-            0.48,
-            value,
-            ha="center",
-            va="center",
-            fontsize=28,
-            color=colors["text"],
-            fontweight="bold",
-        )
-        # Sublabel
-        if sublabel:
-            ax_card.text(
-                0.5,
-                0.18,
-                sublabel,
-                ha="center",
-                va="center",
-                fontsize=10,
-                color=colors["text_dim"],
-            )
-
-    def _get_month_name_for_last_day(self, through_month):
-        """Get the last date string for the reporting period."""
+    def _get_month_name_for_last_day(self, through_month: int) -> str:
+        """The last date of the reporting period, e.g. 'May 31, 2026'."""
         today = datetime.now()
         year = today.year
         if today.day == 1:
@@ -111,383 +74,47 @@ class YTDVisualizer:
         month_name = calendar.month_name[through_month]
         return f"{month_name} {last_day}, {year}"
 
-    def create_ytd_chart(
+    def create_chart(
         self,
         current_cumulative: dict,
         previous_cumulative: dict,
         current_year: int,
+        ratio: str = "wide",
         dark_mode: bool = True,
-        filename: str = None,
+        filename: Optional[str] = None,
         through_month: int = 12,
-        daily_current: dict = None,
-        daily_previous: dict = None,
-        stats: dict = None,
-        monthly_data: dict = None,
-        previous_monthly_data: dict = None,
+        daily_current: Optional[dict] = None,
+        daily_previous: Optional[dict] = None,
+        stats: Optional[dict] = None,
+        monthly_data: Optional[dict] = None,
+        previous_monthly_data: Optional[dict] = None,
     ) -> Path:
-        """
-        Create dashboard-style YTD growth chart with stat cards.
+        """Render the YTD growth chart in one aspect ratio and theme.
 
         Args:
             current_cumulative: Monthly cumulative counts (current year)
             previous_cumulative: Monthly cumulative counts (previous year)
-            current_year: Current year
-            dark_mode: Use dark theme
-            filename: Output filename
-            through_month: Last month to show
+            current_year: Year being reported on
+            ratio: One of 'wide', 'square', 'portrait'
+            dark_mode: Use the dark palette
+            filename: Override the generated output filename
+            through_month: Last month included in the report
             daily_current: Daily cumulative counts (current year)
             daily_previous: Daily cumulative counts (previous year)
-            stats: Statistics dict from analysis
-            monthly_data: Monthly breakdown dict
+            stats: Statistics dict from YTDAnalyzer
+            monthly_data: Per-month counts (current year)
+            previous_monthly_data: Per-month counts (previous year)
+
+        Returns:
+            Path to the written PNG
         """
-        colors = self.dark_colors if dark_mode else self.light_colors
-        previous_year = current_year - 1
-        month_name = calendar.month_name[through_month]
-        through_date = self._get_month_name_for_last_day(through_month)
-
-        # Key stats
-        ytd_total = (
-            stats.get("current_ytd_total", 0)
-            if stats
-            else current_cumulative.get(through_month, 0)
-        )
-        prev_ytd = (
-            stats.get("previous_ytd_total", 0)
-            if stats
-            else previous_cumulative.get(through_month, 0)
-        )
-        yoy_pct = stats.get("yoy_percent", 0) if stats else 0
-        avg_day = stats.get("avg_cves_per_day", 0) if stats else 0
-        yoy_diff = ytd_total - prev_ytd
-
-        # Figure
-        fig = plt.figure(figsize=(14, 10))
-        fig.patch.set_facecolor(colors["background"])
-
-        # Title
-        fig.text(
-            0.5,
-            0.96,
-            f"{current_year} CVE Growth Report",
-            ha="center",
-            va="top",
-            fontsize=26,
-            color=colors["text"],
-            fontweight="bold",
-        )
-        # Blue underline
-        line_ax = fig.add_axes([0.25, 0.945, 0.50, 0.003])
-        line_ax.set_facecolor(colors["current"])
-        line_ax.axis("off")
-
-        # Subtitle
-        fig.text(
-            0.5,
-            0.93,
-            f"Data through {through_date}  ·  Year-over-Year Analysis",
-            ha="center",
-            va="top",
-            fontsize=11,
-            color=colors["text_dim"],
-        )
-
-        # Stat cards
-        card_y = 0.82
-        card_h = 0.09
-        card_w = 0.25
-        gap = 0.03
-        start_x = 0.5 - (3 * card_w + 2 * gap) / 2
-
-        self._draw_stat_card(
-            fig,
-            start_x,
-            card_y,
-            card_w,
-            card_h,
-            "Total CVEs",
-            f"{ytd_total:,}",
-            f"Through {month_name}",
-            colors,
-        )
-
-        # YoY growth card with colored value
-        ax_yoy = fig.add_axes([start_x + card_w + gap, card_y, card_w, card_h])
-        ax_yoy.set_xlim(0, 1)
-        ax_yoy.set_ylim(0, 1)
-        ax_yoy.set_facecolor(colors["card_bg"])
-        ax_yoy.axis("off")
-        for spine in ax_yoy.spines.values():
-            spine.set_edgecolor(colors["card_border"])
-            spine.set_linewidth(1.5)
-            spine.set_visible(True)
-        ax_yoy.text(
-            0.5,
-            0.82,
-            "YoY GROWTH",
-            ha="center",
-            va="center",
-            fontsize=9,
-            color=colors["text_dim"],
-            fontweight="bold",
-        )
-        ax_yoy.text(
-            0.5,
-            0.48,
-            f"{yoy_pct:+.1f}%",
-            ha="center",
-            va="center",
-            fontsize=28,
-            color=colors["accent"],
-            fontweight="bold",
-        )
-        ax_yoy.text(
-            0.5,
-            0.18,
-            f"vs {previous_year} ({prev_ytd:,})",
-            ha="center",
-            va="center",
-            fontsize=10,
-            color=colors["text_dim"],
-        )
-        # Accent bar on left of YoY card
-        bar_ax = fig.add_axes(
-            [
-                start_x + card_w + gap + card_w * 0.47,
-                card_y + card_h * 0.1,
-                0.004,
-                card_h * 0.8,
-            ]
-        )
-        bar_ax.set_facecolor(colors["accent_secondary"])
-        bar_ax.axis("off")
-
-        self._draw_stat_card(
-            fig,
-            start_x + 2 * (card_w + gap),
-            card_y,
-            card_w,
-            card_h,
-            "Daily Average",
-            f"{avg_day:.0f}",
-            "CVEs per day",
-            colors,
-        )
-
-        # Main chart area
-        ax = fig.add_axes([0.08, 0.15, 0.88, 0.60])
-        ax.set_facecolor(colors["background"])
-
-        # Use daily data if available, otherwise monthly
-        if daily_current and daily_previous:
-            days = sorted(daily_current.keys())
-            current_values = [daily_current[d] for d in days]
-            previous_values = [daily_previous.get(d, 0) for d in days]
-
-            ax.plot(
-                days,
-                previous_values,
-                linewidth=1.5,
-                color=colors["previous"],
-                label=f"{previous_year}",
-                alpha=0.7,
-                linestyle="--",
-                zorder=2,
-            )
-            ax.fill_between(
-                days, previous_values, alpha=0.05, color=colors["fill_previous"]
+        if ratio not in _GEOMETRY:
+            raise ValueError(
+                f"Unknown ratio {ratio!r}; expected one of {list(_GEOMETRY)}"
             )
 
-            ax.plot(
-                days,
-                current_values,
-                linewidth=2.5,
-                color=colors["current"],
-                label=f"{current_year}",
-                zorder=3,
-            )
-            ax.fill_between(
-                days, current_values, alpha=0.08, color=colors["fill_current"]
-            )
-
-            # Month tick marks
-            month_starts = []
-            month_labels = []
-            day_accum = 0
-            for m in range(1, through_month + 1):
-                month_starts.append(day_accum + 1)
-                month_labels.append(calendar.month_abbr[m])
-                day_accum += calendar.monthrange(current_year, m)[1]
-            ax.set_xticks(month_starts)
-            ax.set_xticklabels(month_labels)
-
-            # Difference annotation at endpoint (inside chart area)
-            if current_values and previous_values:
-                last_day = days[-1]
-                last_current = current_values[-1]
-                last_previous = previous_values[-1]
-                diff = last_current - last_previous
-                diff_pct = (diff / last_previous * 100) if last_previous > 0 else 0
-
-                bbox_color = colors["accent"] if diff > 0 else "#f85149"
-                mid_y = (last_current + last_previous) / 2
-                ax.annotate(
-                    f"{diff:+,}\n({diff_pct:+.1f}%)",
-                    xy=(last_day, mid_y),
-                    xytext=(
-                        last_day - max(days) * 0.12,
-                        mid_y,
-                    ),
-                    fontsize=10,
-                    fontweight="bold",
-                    color=bbox_color,
-                    bbox=dict(
-                        boxstyle="round,pad=0.4",
-                        facecolor=colors["card_bg"],
-                        edgecolor=bbox_color,
-                        linewidth=1.5,
-                    ),
-                    arrowprops=dict(arrowstyle="->", color=bbox_color, lw=1.5),
-                    ha="center",
-                    va="center",
-                    zorder=5,
-                )
-        else:
-            # Fallback to monthly
-            months = list(range(1, through_month + 1))
-            current_values = [current_cumulative.get(m, 0) for m in months]
-            previous_values = [previous_cumulative.get(m, 0) for m in months]
-            month_labels = [calendar.month_abbr[m] for m in months]
-
-            ax.plot(
-                months,
-                previous_values,
-                marker="o",
-                linewidth=2,
-                markersize=6,
-                color=colors["previous"],
-                label=f"{previous_year}",
-                linestyle="--",
-                alpha=0.7,
-                zorder=2,
-            )
-            ax.plot(
-                months,
-                current_values,
-                marker="o",
-                linewidth=3,
-                markersize=8,
-                color=colors["current"],
-                label=f"{current_year}",
-                zorder=3,
-            )
-
-            ax.set_xticks(months)
-            ax.set_xticklabels(month_labels)
-
-        # Styling
-        ax.grid(True, color=colors["grid"], alpha=0.3, linestyle="-", linewidth=0.5)
-        ax.set_axisbelow(True)
-        ax.set_ylim(bottom=0)
-        ax.set_ylabel(
-            "Cumulative CVEs", fontsize=12, color=colors["text"], fontweight="bold"
-        )
-        ax.tick_params(colors=colors["text"], labelsize=10)
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
-        for spine in ax.spines.values():
-            spine.set_color(colors["grid"])
-            spine.set_linewidth(0.5)
-
-        # Legend
-        legend = ax.legend(loc="upper left", fontsize=11, framealpha=0.95)
-        legend.get_frame().set_facecolor(colors["card_bg"])
-        legend.get_frame().set_edgecolor(colors["card_border"])
-        for text in legend.get_texts():
-            text.set_color(colors["text"])
-
-        # Footer stats
-        if monthly_data:
-            month_counts = {
-                m: monthly_data.get(m, 0) for m in range(1, through_month + 1)
-            }
-            non_zero = {m: c for m, c in month_counts.items() if c > 0}
-            if non_zero:
-                peak_m = max(non_zero, key=non_zero.get)
-                low_m = min(non_zero, key=non_zero.get)
-                # Highest YoY growth month (current vs same month prior year)
-                best_growth_m = None
-                best_growth_pct = float("-inf")
-                prev_monthly = previous_monthly_data or {}
-                for m in range(1, through_month + 1):
-                    prev = prev_monthly.get(m, 0)
-                    if prev > 0 and month_counts.get(m, 0) > 0:
-                        g = (month_counts[m] - prev) / prev * 100
-                        if g > best_growth_pct:
-                            best_growth_pct = g
-                            best_growth_m = m
-
-                footer_parts = [
-                    f"Peak Month: {calendar.month_abbr[peak_m]} ({non_zero[peak_m]:,})",
-                    f"Low Month: {calendar.month_abbr[low_m]} ({non_zero[low_m]:,})",
-                ]
-                if best_growth_m:
-                    footer_parts.append(
-                        f"Highest YoY Growth: {calendar.month_abbr[best_growth_m]} ({best_growth_pct:+.1f}%)"
-                    )
-
-                fig.text(
-                    0.5,
-                    0.06,
-                    "  ·  ".join(footer_parts),
-                    ha="center",
-                    va="center",
-                    fontsize=10,
-                    color=colors["text_dim"],
-                )
-
-        # Attribution
-        fig.text(
-            0.5,
-            0.02,
-            f"Data: NIST National Vulnerability Database  ·  @jgamblin · rogolabs.net",
-            ha="center",
-            va="center",
-            fontsize=9,
-            color=colors["text_dim"],
-            alpha=0.7,
-        )
-
-        # Save
-        if filename is None:
-            mode_suffix = "_dark" if dark_mode else "_light"
-            filename = f"CVE_Growth_{current_year}{mode_suffix}_landscape.png"
-
-        output_path = self.output_dir / filename
-        plt.savefig(
-            output_path,
-            dpi=200,
-            bbox_inches="tight",
-            facecolor=colors["background"],
-            edgecolor="none",
-        )
-        plt.close()
-        return output_path
-
-    def create_square_chart(
-        self,
-        current_cumulative: dict,
-        previous_cumulative: dict,
-        current_year: int,
-        dark_mode: bool = True,
-        through_month: int = 12,
-        daily_current: dict = None,
-        daily_previous: dict = None,
-        stats: dict = None,
-        monthly_data: dict = None,
-        previous_monthly_data: dict = None,
-    ) -> Path:
-        """Create square format (1:1) dashboard chart for social media."""
-        # Reuse landscape chart with square dimensions
-        colors = self.dark_colors if dark_mode else self.light_colors
+        colors = style.apply_style(dark=dark_mode)
+        geo = _GEOMETRY[ratio]
         previous_year = current_year - 1
         month_name = calendar.month_name[through_month]
         through_date = self._get_month_name_for_last_day(through_month)
@@ -505,106 +132,45 @@ class YTDVisualizer:
         yoy_pct = stats.get("yoy_percent", 0) if stats else 0
         avg_day = stats.get("avg_cves_per_day", 0) if stats else 0
 
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(figsize=style.figsize_for(ratio))
         fig.patch.set_facecolor(colors["background"])
 
-        # Title
-        fig.text(
-            0.5,
-            0.96,
-            f"{current_year} CVE Growth Report",
-            ha="center",
-            va="top",
-            fontsize=22,
-            color=colors["text"],
-            fontweight="bold",
-        )
-        line_ax = fig.add_axes([0.28, 0.945, 0.44, 0.003])
-        line_ax.set_facecolor(colors["current"])
-        line_ax.axis("off")
-        fig.text(
-            0.5,
-            0.93,
-            f"Data through {through_date}  ·  Year-over-Year Analysis",
-            ha="center",
-            va="top",
-            fontsize=10,
-            color=colors["text_dim"],
-        )
-
-        # Stat cards (smaller for square)
-        card_y = 0.83
-        card_h = 0.08
-        card_w = 0.27
-        gap = 0.025
-        start_x = 0.5 - (3 * card_w + 2 * gap) / 2
-
-        self._draw_stat_card(
+        style.draw_header(
             fig,
-            start_x,
-            card_y,
-            card_w,
-            card_h,
-            "Total CVEs",
-            f"{ytd_total:,}",
-            f"Through {month_name}",
-            colors,
+            title=f"Cumulative CVEs Published, {current_year} vs {previous_year}",
+            subtitle=f"Through {through_date}  ·  {ytd_total:,} CVEs year to date",
+            colors=colors,
+            ratio=ratio,
+            eyebrow_suffix="YTD Growth",
         )
 
-        # YoY card
-        ax_yoy = fig.add_axes([start_x + card_w + gap, card_y, card_w, card_h])
-        ax_yoy.set_xlim(0, 1)
-        ax_yoy.set_ylim(0, 1)
-        ax_yoy.set_facecolor(colors["card_bg"])
-        ax_yoy.axis("off")
-        for spine in ax_yoy.spines.values():
-            spine.set_edgecolor(colors["card_border"])
-            spine.set_linewidth(1.5)
-            spine.set_visible(True)
-        ax_yoy.text(
-            0.5,
-            0.82,
-            "YoY GROWTH",
-            ha="center",
-            va="center",
-            fontsize=8,
-            color=colors["text_dim"],
-            fontweight="bold",
-        )
-        ax_yoy.text(
-            0.5,
-            0.48,
-            f"{yoy_pct:+.1f}%",
-            ha="center",
-            va="center",
-            fontsize=24,
-            color=colors["accent"],
-            fontweight="bold",
-        )
-        ax_yoy.text(
-            0.5,
-            0.18,
-            f"vs {previous_year} ({prev_ytd:,})",
-            ha="center",
-            va="center",
-            fontsize=9,
-            color=colors["text_dim"],
-        )
+        # --- stat cards -----------------------------------------------------
+        cards = [
+            ("Total CVEs", f"{ytd_total:,}", f"Through {month_name}", None),
+            (
+                "YoY Growth",
+                f"{yoy_pct:+.1f}%",
+                f"vs {previous_year} ({prev_ytd:,})",
+                colors["primary"],
+            ),
+            ("Daily Average", f"{avg_day:.0f}", "CVEs per day", None),
+        ]
+        for index, (label, value, sublabel, value_color) in enumerate(cards):
+            style.draw_stat_card(
+                fig,
+                _CARD_X0 + index * (_CARD_W + _CARD_GAP),
+                geo["card_y"],
+                _CARD_W,
+                geo["card_h"],
+                label,
+                value,
+                sublabel,
+                colors,
+                value_color=value_color,
+            )
 
-        self._draw_stat_card(
-            fig,
-            start_x + 2 * (card_w + gap),
-            card_y,
-            card_w,
-            card_h,
-            "Daily Average",
-            f"{avg_day:.0f}",
-            "CVEs per day",
-            colors,
-        )
-
-        # Chart (reduced height for footer stats)
-        ax = fig.add_axes([0.10, 0.15, 0.84, 0.61])
+        # --- main series ----------------------------------------------------
+        ax = fig.add_axes(geo["axes"])
         ax.set_facecolor(colors["background"])
 
         if daily_current and daily_previous:
@@ -615,200 +181,245 @@ class YTDVisualizer:
             ax.plot(
                 days,
                 previous_values,
-                linewidth=1.5,
-                color=colors["previous"],
-                label=f"{previous_year}",
-                alpha=0.7,
+                linewidth=1.8,
+                color=colors["neutral"],
+                label=str(previous_year),
                 linestyle="--",
                 zorder=2,
-            )
-            ax.fill_between(
-                days, previous_values, alpha=0.05, color=colors["fill_previous"]
             )
             ax.plot(
                 days,
                 current_values,
-                linewidth=2.5,
-                color=colors["current"],
-                label=f"{current_year}",
+                linewidth=2.6,
+                color=colors["alert"],
+                label=str(current_year),
                 zorder=3,
-            )
-            ax.fill_between(
-                days, current_values, alpha=0.08, color=colors["fill_current"]
             )
 
             month_starts = []
             month_labels = []
             day_accum = 0
-            for m in range(1, through_month + 1):
+            for month in range(1, through_month + 1):
                 month_starts.append(day_accum + 1)
-                month_labels.append(calendar.month_abbr[m])
-                day_accum += calendar.monthrange(current_year, m)[1]
+                month_labels.append(calendar.month_abbr[month])
+                day_accum += calendar.monthrange(current_year, month)[1]
             ax.set_xticks(month_starts)
             ax.set_xticklabels(month_labels)
 
             if current_values and previous_values:
-                last_day = days[-1]
-                diff = current_values[-1] - previous_values[-1]
-                diff_pct = (
-                    (diff / previous_values[-1] * 100) if previous_values[-1] > 0 else 0
-                )
-                bbox_color = colors["accent"] if diff > 0 else "#f85149"
-                mid_y = (current_values[-1] + previous_values[-1]) / 2
-                ax.annotate(
-                    f"{diff:+,}\n({diff_pct:+.1f}%)",
-                    xy=(last_day, mid_y),
-                    xytext=(
-                        last_day - max(days) * 0.12,
-                        mid_y,
-                    ),
-                    fontsize=9,
-                    fontweight="bold",
-                    color=bbox_color,
-                    bbox=dict(
-                        boxstyle="round,pad=0.3",
-                        facecolor=colors["card_bg"],
-                        edgecolor=bbox_color,
-                        linewidth=1.5,
-                    ),
-                    arrowprops=dict(arrowstyle="->", color=bbox_color, lw=1.5),
-                    ha="center",
-                    va="center",
-                    zorder=5,
-                )
+                self._annotate_gap(ax, days, current_values, previous_values, colors)
         else:
             months = list(range(1, through_month + 1))
             current_values = [current_cumulative.get(m, 0) for m in months]
             previous_values = [previous_cumulative.get(m, 0) for m in months]
+
             ax.plot(
                 months,
                 previous_values,
                 marker="o",
-                linewidth=2,
-                markersize=6,
-                color=colors["previous"],
-                label=f"{previous_year}",
+                markersize=5,
+                linewidth=1.8,
+                color=colors["neutral"],
+                label=str(previous_year),
                 linestyle="--",
-                alpha=0.7,
+                zorder=2,
             )
             ax.plot(
                 months,
                 current_values,
                 marker="o",
-                linewidth=3,
-                markersize=8,
-                color=colors["current"],
-                label=f"{current_year}",
+                markersize=6,
+                linewidth=2.6,
+                color=colors["alert"],
+                label=str(current_year),
+                zorder=3,
             )
             ax.set_xticks(months)
             ax.set_xticklabels([calendar.month_abbr[m] for m in months])
 
-        ax.grid(True, color=colors["grid"], alpha=0.3, linestyle="-", linewidth=0.5)
-        ax.set_axisbelow(True)
         ax.set_ylim(bottom=0)
-        ax.set_ylabel(
-            "Cumulative CVEs", fontsize=11, color=colors["text"], fontweight="bold"
-        )
-        ax.tick_params(colors=colors["text"], labelsize=9)
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
-        for spine in ax.spines.values():
-            spine.set_color(colors["grid"])
-            spine.set_linewidth(0.5)
+        ax.set_ylabel("Cumulative CVEs", fontsize=12, fontweight="bold")
+        ax.yaxis.set_major_formatter(style.thousands_formatter())
+        ax.grid(True, axis="y", color=colors["grid"], linewidth=0.6, alpha=0.8)
+        ax.set_axisbelow(True)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        for side in ("left", "bottom"):
+            ax.spines[side].set_color(colors["grid"])
+            ax.spines[side].set_linewidth(1.0)
 
-        legend = ax.legend(loc="upper left", fontsize=10, framealpha=0.95)
-        legend.get_frame().set_facecolor(colors["card_bg"])
-        legend.get_frame().set_edgecolor(colors["card_border"])
+        legend = ax.legend(loc="upper left", fontsize=11, frameon=False)
         for text in legend.get_texts():
             text.set_color(colors["text"])
 
-        # Footer stats
-        if monthly_data:
-            month_counts = {
-                m: monthly_data.get(m, 0) for m in range(1, through_month + 1)
-            }
-            non_zero = {m: c for m, c in month_counts.items() if c > 0}
-            if non_zero:
-                peak_m = max(non_zero, key=non_zero.get)
-                low_m = min(non_zero, key=non_zero.get)
-                best_growth_m = None
-                best_growth_pct = float("-inf")
-                prev_monthly = previous_monthly_data or {}
-                for m in range(1, through_month + 1):
-                    prev = prev_monthly.get(m, 0)
-                    if prev > 0 and month_counts.get(m, 0) > 0:
-                        g = (month_counts[m] - prev) / prev * 100
-                        if g > best_growth_pct:
-                            best_growth_pct = g
-                            best_growth_m = m
-
-                footer_parts = [
-                    f"Peak: {calendar.month_abbr[peak_m]} ({non_zero[peak_m]:,})",
-                    f"Low: {calendar.month_abbr[low_m]} ({non_zero[low_m]:,})",
-                ]
-                if best_growth_m:
-                    footer_parts.append(
-                        f"Highest YoY Growth: {calendar.month_abbr[best_growth_m]} ({best_growth_pct:+.1f}%)"
-                    )
-
-                fig.text(
-                    0.5,
-                    0.06,
-                    "  ·  ".join(footer_parts),
-                    ha="center",
-                    va="center",
-                    fontsize=9,
-                    color=colors["text_dim"],
-                )
-
-        fig.text(
-            0.5,
-            0.02,
-            "Data: NIST National Vulnerability Database  ·  @jgamblin · rogolabs.net",
-            ha="center",
-            fontsize=8,
-            color=colors["text_dim"],
-            alpha=0.7,
+        # --- footer ---------------------------------------------------------
+        footer = self._month_extremes(
+            monthly_data, previous_monthly_data, through_month
         )
+        if footer:
+            fig.text(
+                0.05,
+                geo["footer_y"],
+                footer,
+                fontfamily=style.BODY_FONT,
+                fontsize=geo["footer_size"],
+                color=colors["secondary"],
+                ha="left",
+                va="bottom",
+            )
 
-        mode_suffix = "_dark" if dark_mode else "_light"
-        output_path = (
-            self.output_dir / f"CVE_Growth_{current_year}{mode_suffix}_square.png"
+        style.draw_footnote(fig, "Source: NVD, excluding rejected CVEs", colors)
+
+        if filename is None:
+            mode_suffix = "_dark" if dark_mode else "_light"
+            ratio_name = "landscape" if ratio == "wide" else ratio
+            filename = f"CVE_Growth_{current_year}{mode_suffix}_{ratio_name}.png"
+
+        output_path = style.stamp_and_save(
+            fig, self.output_dir / filename, colors, stamp_date=datetime.now()
         )
-        plt.savefig(
-            output_path,
-            dpi=200,
-            bbox_inches="tight",
-            facecolor=colors["background"],
-            edgecolor="none",
-        )
-        plt.close()
+        logger.info("Chart written to %s", output_path)
         return output_path
+
+    def _annotate_gap(self, ax, days, current_values, previous_values, colors) -> None:
+        """Bracket the gap between the two series at the reporting endpoint.
+
+        A vertical span at the last day, labelled to its left. An arrow pointing
+        at the endpoint reads as pointing at nothing, because the quantity being
+        called out is the distance between the lines rather than a point on them.
+        """
+        last_day = days[-1]
+        last_current = current_values[-1]
+        last_previous = previous_values[-1]
+        diff = last_current - last_previous
+        diff_pct = (diff / last_previous * 100) if last_previous > 0 else 0
+        mid_y = (last_current + last_previous) / 2
+
+        ax.annotate(
+            "",
+            xy=(last_day, last_previous),
+            xytext=(last_day, last_current),
+            arrowprops=dict(
+                arrowstyle="<->",
+                color=colors["primary"],
+                lw=1.2,
+                shrinkA=0,
+                shrinkB=0,
+            ),
+            zorder=5,
+        )
+        ax.text(
+            last_day - max(days) * 0.015,
+            mid_y,
+            f"{diff:+,}\n({diff_pct:+.1f}%)",
+            fontfamily=style.MONO_FONT,
+            fontsize=9.5,
+            fontweight="bold",
+            color=colors["primary"],
+            bbox=dict(
+                boxstyle="round,pad=0.4",
+                facecolor=colors["soft"],
+                edgecolor=colors["grid"],
+                linewidth=1.0,
+            ),
+            ha="right",
+            va="center",
+            zorder=6,
+        )
+
+    def _month_extremes(
+        self,
+        monthly_data: Optional[dict],
+        previous_monthly_data: Optional[dict],
+        through_month: int,
+    ) -> str:
+        """A one-line summary of the busiest, quietest, and fastest-growing month."""
+        if not monthly_data:
+            return ""
+
+        counts = {m: monthly_data.get(m, 0) for m in range(1, through_month + 1)}
+        non_zero = {m: c for m, c in counts.items() if c > 0}
+        if not non_zero:
+            return ""
+
+        peak = max(non_zero, key=lambda month: non_zero[month])
+        low = min(non_zero, key=lambda month: non_zero[month])
+        parts = [
+            f"Busiest month: {calendar.month_abbr[peak]} ({non_zero[peak]:,})",
+            f"Quietest month: {calendar.month_abbr[low]} ({non_zero[low]:,})",
+        ]
+
+        previous = previous_monthly_data or {}
+        best_month, best_growth = None, float("-inf")
+        for month in range(1, through_month + 1):
+            prior = previous.get(month, 0)
+            if prior > 0 and counts.get(month, 0) > 0:
+                growth = (counts[month] - prior) / prior * 100
+                if growth > best_growth:
+                    best_growth, best_month = growth, month
+        if best_month:
+            parts.append(
+                f"Fastest YoY growth: {calendar.month_abbr[best_month]} "
+                f"({best_growth:+.1f}%)"
+            )
+
+        return "  ·  ".join(parts)
+
+    # -- backwards-compatible entry points ----------------------------------
+
+    def create_ytd_chart(self, *args, **kwargs) -> Path:
+        """Render the wide (16:9) chart. Output name keeps the 'landscape' suffix."""
+        kwargs.setdefault("ratio", "wide")
+        return self.create_chart(*args, **kwargs)
+
+    def create_square_chart(self, *args, **kwargs) -> Path:
+        """Render the square (1:1) chart for the feed."""
+        kwargs["ratio"] = "square"
+        return self.create_chart(*args, **kwargs)
+
+    def create_portrait_chart(self, *args, **kwargs) -> Path:
+        """Render the portrait (4:5) chart for Instagram and LinkedIn."""
+        kwargs["ratio"] = "portrait"
+        return self.create_chart(*args, **kwargs)
 
     def create_yoy_comparison(
         self,
-        current_year,
-        previous_year,
-        current_ytd,
-        previous_ytd,
-        growth_percent,
+        current_year: int,
+        previous_year: int,
+        current_ytd: int,
+        previous_ytd: int,
+        growth_percent: float,
+        dark_mode: bool = False,
     ) -> Path:
-        """Create year-over-year bar comparison chart."""
-        colors = self.dark_colors
+        """Render the year-over-year bar comparison."""
+        colors = style.apply_style(dark=dark_mode)
+        ratio = "wide"
 
-        fig, ax = plt.subplots(figsize=(12, 7))
+        fig = plt.figure(figsize=style.figsize_for(ratio))
         fig.patch.set_facecolor(colors["background"])
+
+        style.draw_header(
+            fig,
+            title=f"Year to Date CVEs, {previous_year} vs {current_year}",
+            subtitle=(
+                f"Same period both years  ·  {growth_percent:+.1f}% year over year"
+            ),
+            colors=colors,
+            ratio=ratio,
+            eyebrow_suffix="YoY Comparison",
+        )
+
+        ax = fig.add_axes((0.075, 0.150, 0.880, 0.560))
         ax.set_facecolor(colors["background"])
 
         years = [str(previous_year), str(current_year)]
         values = [previous_ytd, current_ytd]
-
         bars = ax.bar(
             years,
             values,
-            color=[colors["previous"], colors["current"]],
-            width=0.6,
-            edgecolor=colors["grid"],
-            linewidth=2,
+            color=[colors["light"], colors["alert"]],
+            width=0.35,
+            zorder=3,
         )
 
         for bar, value in zip(bars, values):
@@ -818,62 +429,28 @@ class YTDVisualizer:
                 f"{int(value):,}",
                 ha="center",
                 va="bottom",
-                fontsize=14,
-                fontweight="bold",
+                fontfamily=style.HEAD_FONT,
+                fontsize=20,
                 color=colors["text"],
             )
 
-        ax.text(
-            0.5,
-            max(values) * 0.5,
-            f"{growth_percent:+.1f}%",
-            ha="center",
-            va="center",
-            fontsize=32,
-            fontweight="bold",
-            color=colors["accent"],
-            alpha=0.7,
-        )
-
-        ax.set_ylabel(
-            "Cumulative CVEs (YTD)",
-            fontsize=12,
-            color=colors["text"],
-            fontweight="bold",
-        )
-        ax.set_title(
-            "Year-Over-Year Comparison",
-            fontsize=16,
-            color=colors["text"],
-            fontweight="bold",
-            pad=20,
-        )
-        ax.tick_params(colors=colors["text"], labelsize=11)
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
-        ax.grid(
-            True,
-            axis="y",
-            color=colors["grid"],
-            alpha=0.2,
-            linestyle="-",
-            linewidth=0.5,
-        )
+        ax.set_ylabel("CVEs published (YTD)", fontsize=12, fontweight="bold")
+        ax.yaxis.set_major_formatter(style.thousands_formatter())
+        ax.set_ylim(0, max(values) * 1.18 if max(values) else 1)
+        ax.grid(True, axis="y", color=colors["grid"], linewidth=0.6, alpha=0.8)
         ax.set_axisbelow(True)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_color(colors["grid"])
-        ax.spines["bottom"].set_color(colors["grid"])
+        for side in ("left", "bottom"):
+            ax.spines[side].set_color(colors["grid"])
+            ax.spines[side].set_linewidth(1.0)
+        ax.tick_params(labelsize=13)
 
-        output_path = (
-            self.output_dir
-            / f"YOY_CVE_Comparison_{current_year}_vs_{previous_year}.png"
+        style.draw_footnote(fig, "Source: NVD, excluding rejected CVEs", colors)
+
+        filename = f"YOY_CVE_Comparison_{current_year}_vs_{previous_year}.png"
+        output_path = style.stamp_and_save(
+            fig, self.output_dir / filename, colors, stamp_date=datetime.now()
         )
-        plt.savefig(
-            output_path,
-            dpi=200,
-            bbox_inches="tight",
-            facecolor=colors["background"],
-            edgecolor="none",
-        )
-        plt.close()
+        logger.info("Chart written to %s", output_path)
         return output_path

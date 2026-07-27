@@ -10,7 +10,6 @@ Generates comprehensive YTD statistics including:
 
 from datetime import datetime
 from pathlib import Path
-import pandas as pd
 import json
 
 
@@ -135,8 +134,8 @@ class YTDAnalyzer:
         current_year = self.current_year
         previous_year = current_year - 1
 
-        current_daily = Counter()
-        previous_daily = Counter()
+        current_daily: Counter = Counter()
+        previous_daily: Counter = Counter()
 
         try:
             with open(self.data_file, "r") as f:
@@ -283,9 +282,44 @@ class YTDAnalyzer:
             "avg_cves_per_day": avg_per_day,
         }
 
+    @staticmethod
+    def _opening_claim(stats: dict) -> str:
+        """The arguable one-sentence opener, chosen from the shape of the data.
+
+        House copy formula: open on a claim rather than a statistic, so the first
+        line is something a reader can agree or disagree with.
+        """
+        yoy = stats["yoy_percent"]
+        month = stats["month_percent"]
+
+        if yoy >= 25 and month > 0:
+            return (
+                "CVE growth has stopped looking like a spike and started looking "
+                "like the baseline."
+            )
+        if yoy > 0 and month <= 0:
+            return "One slower month is not a trend reversal."
+        if yoy > 0:
+            return "Published CVEs are still outrunning last year's pace."
+        if yoy < 0:
+            return "The CVE curve is finally bending the other way."
+        return "CVE publication is holding flat against last year."
+
+    @staticmethod
+    def _closing_question(stats: dict) -> str:
+        """The genuine closing question."""
+        if stats["yoy_percent"] > 0:
+            return "If this is the new baseline, what gives out first in your triage?"
+        if stats["yoy_percent"] < 0:
+            return "Is this a real plateau, or just a quiet stretch?"
+        return "Does flat volume change how you plan for next quarter?"
+
     def get_summary_text(self, analysis: dict) -> str:
         """
-        Generate LinkedIn/social media post summary text.
+        Generate the social post text (also used as the GitHub release body).
+
+        Follows the house copy formula: an arguable claim first, the load-bearing
+        number second, no em dashes, and a genuine question to close.
 
         Args:
             analysis: Result from analyze_ytd()
@@ -294,34 +328,27 @@ class YTDAnalyzer:
             Formatted text summary for social posts
         """
         stats = analysis["statistics"]
-        current_month_name = datetime(
-            analysis["current_year"], stats["current_month"], 1
-        ).strftime("%B")
+        year = analysis["current_year"]
+        current_month_name = datetime(year, stats["current_month"], 1).strftime("%B")
         previous_year = analysis["previous_year"]
 
-        # Format numbers with commas
-        ytd_total = f"{stats['current_ytd_total']:,}"
-        ytd_previous = f"{stats['previous_ytd_total']:,}"
-        ytd_diff = f"{stats['yoy_growth']:+,}"
         month_count = f"{stats['current_month_count']:,}"
-        month_previous = f"{stats['previous_month_count']:,}"
-        month_diff = f"{stats['month_growth']:+,}"
+        month_pct = f"{stats['month_percent']:+.1f}%"
+        ytd_total = f"{stats['current_ytd_total']:,}"
+        ytd_pct = f"{stats['yoy_percent']:+.1f}%"
+        ytd_diff = f"{stats['yoy_growth']:+,}"
         avg_per_day = f"{stats['avg_cves_per_day']:.0f}"
 
-        summary = f"""{current_month_name} {analysis["current_year"]} CVE Growth Report:
-
-YTD ({current_month_name}):
-► {ytd_total} total CVEs ({stats["yoy_percent"]:+.1f}% vs {previous_year} YTD)
-► {avg_per_day} new vulnerabilities per day
-► {ytd_diff} more CVEs than {previous_year} through {current_month_name}
-
-{current_month_name} alone:
-► {month_count} CVEs ({stats["month_percent"]:+.1f}% vs {current_month_name} {previous_year})
-
-Context:
-After the CVE volume in {current_month_name} {previous_year}, {current_month_name} is tracking at {stats["month_percent"]:+.1f}% — {"pushing" if stats["month_percent"] > 0 else "pulling"} YTD growth from {stats["yoy_percent"]:.1f}%."""
-
-        return summary
+        return (
+            f"{self._opening_claim(stats)}\n\n"
+            f"{current_month_name} {year} closed at {month_count} published CVEs, "
+            f"{month_pct} against {current_month_name} {previous_year}.\n\n"
+            f"That puts {year} at {ytd_total} CVEs year to date, {ytd_pct} year over "
+            f"year, and {avg_per_day} new CVEs every day. Against the same point in "
+            f"{previous_year} the gap is {ytd_diff} CVEs.\n\n"
+            f"{self._closing_question(stats)}\n\n"
+            f"Source: NVD, excluding rejected CVEs"
+        )
 
     def get_enriched_text(self, analysis: dict, monthly_report: dict) -> str:
         """
@@ -371,6 +398,8 @@ After the CVE volume in {current_month_name} {previous_year}, {current_month_nam
             "CWE-400": "Resource Exhaustion",
             "CWE-94": "Code Injection",
             "CWE-306": "Missing Authentication",
+            "NVD-CWE-noinfo": "Not specified",
+            "NVD-CWE-Other": "Other",
         }
 
         # Build CVSS line
@@ -379,10 +408,10 @@ After the CVE volume in {current_month_name} {previous_year}, {current_month_nam
         if cvss_data.get("median"):
             median = cvss_data["median"]
             p75 = cvss_data.get("percentile_75", "")
-            cvss_line = f"\nMedian CVSS: {median}"
+            cvss_line = f"\n\nMedian CVSS came in at {median}"
             if p75:
-                cvss_line += f" (75th percentile: {p75})"
-            cvss_line += "\n"
+                cvss_line += f", with the 75th percentile at {p75}"
+            cvss_line += "."
 
         # Build top CWEs
         cwe_data = monthly_report.get("cwe", {})
@@ -390,21 +419,21 @@ After the CVE volume in {current_month_name} {previous_year}, {current_month_nam
         cwe_lines = ""
         if top_cwes:
             items = list(top_cwes.items())[:5]
-            cwe_lines = "\nTop weaknesses:\n"
+            cwe_lines = "\n\nMost common weaknesses:\n"
             for cwe_id, count in items:
                 name = cwe_names.get(cwe_id, cwe_id)
                 cwe_lines += f"  {name} ({cwe_id}): {count:,}\n"
+            cwe_lines = cwe_lines.rstrip("\n")
 
-        text = (
-            f"{current_month_name} saw {month_count} new CVEs — "
-            f"{month_pct} over {current_month_name} {previous_year} "
-            f"and pushing {year} YTD to {ytd_total} "
-            f"({ytd_pct} YoY). "
-            f"That's {avg_day} new vulnerabilities per day."
+        return (
+            f"{self._opening_claim(stats)}\n\n"
+            f"{current_month_name} closed at {month_count} published CVEs, "
+            f"{month_pct} against {current_month_name} {previous_year}, which puts "
+            f"{year} at {ytd_total} year to date ({ytd_pct} year over year) and "
+            f"{avg_day} new CVEs every day."
             f"{cvss_line}"
             f"{cwe_lines}"
-            f"\nData: NVD (excluding rejected CVEs)\n\n"
-            f"#CVE #VulnerabilityManagement #InfoSec #CyberSecurity"
+            f"\n\n{self._closing_question(stats)}"
+            f"\n\nSource: NVD, excluding rejected CVEs"
+            f"\n\n#CVE #VulnerabilityManagement #InfoSec"
         )
-
-        return text

@@ -1,9 +1,7 @@
 """Main CLI entry point for CVE statistics."""
 
-import logging
 import sys
 from datetime import datetime
-from pathlib import Path
 
 try:
     import typer
@@ -22,7 +20,6 @@ from src.analysis.trends import TrendAnalyzer
 from src.analysis.ytd_growth import YTDAnalyzer
 from src.reports.generator import ReportGenerator
 from src.reports.ytd_visualizer import YTDVisualizer
-
 
 app = typer.Typer(
     help="CVE Statistics - Monthly automated CVE analysis and reporting",
@@ -72,15 +69,26 @@ def run_monthly() -> None:
     year, month = Config.get_current_month_info()
     logger.info(f"Analyzing CVE data for {year}-{month:02d}")
 
-    # Load and process data
+    # Load the whole year, then slice the reporting month out of it. The trend
+    # analyses need more than one month to say anything, so they get the year.
     processor = DataProcessor(Config.NVD_DATA_FILE)
-    df = processor.load_to_dataframe(year=year, month=month)
+    df_year = processor.load_to_dataframe(year=year)
+
+    if df_year.empty:
+        logger.warning("No CVE data found for %d", year)
+        return
+
+    if "published" in df_year.columns:
+        df = df_year[df_year["published"].dt.month == month]
+    else:
+        logger.warning("No 'published' column; reporting on the full year")
+        df = df_year
 
     if df.empty:
         logger.warning("No CVE data found for the specified period")
         return
 
-    logger.info(f"Loaded {len(df)} CVE records")
+    logger.info(f"Loaded {len(df)} CVE records for {year}-{month:02d}")
 
     # Run analyses
     stats_analyzer = StatisticsAnalyzer()
@@ -91,8 +99,8 @@ def run_monthly() -> None:
     cwe_stats = stats_analyzer.analyze_by_cwe(df)
     daily_dist = stats_analyzer.daily_distribution(df)
 
-    monthly_trend = trend_analyzer.monthly_trend(df)
-    growth = trend_analyzer.growth_rate(df)
+    monthly_trend = trend_analyzer.monthly_trend(df_year)
+    growth = trend_analyzer.growth_rate(df_year)
 
     logger.info(f"✓ Analysis complete: {len(df)} CVEs processed")
 
@@ -234,43 +242,19 @@ def generate_ytd_report() -> None:
         previous_monthly_data=analysis["previous_year_data"],
     )
 
-    # Create all chart formats
+    # Every ratio in both themes: wide for X, square and portrait for the feed.
     logger.info("Creating YTD growth charts...")
-    visualizer.create_ytd_chart(
-        analysis["current_cumulative"],
-        analysis["previous_cumulative"],
-        analysis["current_year"],
-        dark_mode=True,
-        through_month=through_month,
-        **chart_kwargs,
-    )
-
-    visualizer.create_ytd_chart(
-        analysis["current_cumulative"],
-        analysis["previous_cumulative"],
-        analysis["current_year"],
-        dark_mode=False,
-        through_month=through_month,
-        **chart_kwargs,
-    )
-
-    visualizer.create_square_chart(
-        analysis["current_cumulative"],
-        analysis["previous_cumulative"],
-        analysis["current_year"],
-        dark_mode=True,
-        through_month=through_month,
-        **chart_kwargs,
-    )
-
-    visualizer.create_square_chart(
-        analysis["current_cumulative"],
-        analysis["previous_cumulative"],
-        analysis["current_year"],
-        dark_mode=False,
-        through_month=through_month,
-        **chart_kwargs,
-    )
+    for ratio in ("wide", "square", "portrait"):
+        for dark_mode in (True, False):
+            visualizer.create_chart(
+                analysis["current_cumulative"],
+                analysis["previous_cumulative"],
+                analysis["current_year"],
+                ratio=ratio,
+                dark_mode=dark_mode,
+                through_month=through_month,
+                **chart_kwargs,
+            )
 
     visualizer.create_yoy_comparison(
         analysis["current_year"],
