@@ -46,6 +46,19 @@ _ACRONYM_FORMS = {
 
 _SMALL_WORDS = {"per", "of", "in", "vs", "with", "and", "a"}
 
+# CVSS scores always show at least one decimal. Collapsing 0.0 to "0" and 10.0 to
+# "10" makes a score read as a missing value or an integer scale. A mean keeps its
+# second decimal, so this is a floor on precision, not a cap.
+_SCORE_KEYS = {
+    "mean",
+    "median",
+    "min",
+    "max",
+    "std_dev",
+    "percentile_25",
+    "percentile_75",
+}
+
 # Counts get thousands separators; these are identifiers that happen to be
 # numeric, so 'Year: 2026' must not become 'Year: 2,026'.
 _UNSEPARATED_KEYS = {"year", "years", "month", "day"}
@@ -89,6 +102,8 @@ def _fmt(value, key: str = "") -> str:
             return str(value)
         return f"{value:,}"
     if isinstance(value, float):
+        if key.lower() in _SCORE_KEYS and value.is_integer():
+            return f"{value:,.1f}"
         if value.is_integer():
             return f"{int(value):,}"
         return f"{value:,.2f}".rstrip("0").rstrip(".")

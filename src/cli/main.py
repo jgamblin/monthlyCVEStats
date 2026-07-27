@@ -106,13 +106,24 @@ def run_analysis(year: int, month: Optional[int] = None) -> bool:
     stats_analyzer = StatisticsAnalyzer()
     trend_analyzer = TrendAnalyzer()
 
+    # If the reporting month has not finished, it holds fewer days than the
+    # months it would be ranked against, so it is excluded from the rankings and
+    # reported separately on a daily rate.
+    now = datetime.now()
+    partial_period = partial_days = None
+    if month is not None and (year, month) == (now.year, now.month):
+        partial_period = f"{year}-{month:02d}"
+        partial_days = now.day
+
     analysis_results = {
         "cvss": stats_analyzer.analyze_cvss_distribution(df),
         "cna": stats_analyzer.analyze_by_cna(df),
         "cwe": stats_analyzer.analyze_by_cwe(df),
         "daily": stats_analyzer.daily_distribution(df),
-        "monthly_trend": trend_analyzer.monthly_trend(df_ytd),
-        "growth": trend_analyzer.growth_rate(df_ytd),
+        "monthly_trend": trend_analyzer.monthly_trend(
+            df_ytd, partial_period=partial_period, partial_days=partial_days
+        ),
+        "growth": trend_analyzer.growth_rate(df_ytd, partial_period=partial_period),
     }
 
     logger.info(f"✓ Analysis complete: {len(df)} CVEs processed")
@@ -250,6 +261,7 @@ def generate_ytd_report() -> None:
         analysis["statistics"]["current_ytd_total"],
         analysis["statistics"]["previous_ytd_total"],
         analysis["statistics"]["yoy_percent"],
+        through_month=through_month,
     )
 
     # Generate summary text

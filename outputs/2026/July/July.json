@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-27T14:20:18.948180",
+  "generated_at": "2026-07-27T14:51:13.818923",
   "data": {
     "Summary": {
       "Month": "July",
@@ -56,6 +56,7 @@
     },
     "daily": {
       "days_with_cves": 27,
+      "calendar_days_covered": 27,
       "avg_cves_per_day": 296.7,
       "busiest_day": "2026-07-21",
       "busiest_day_count": 1474,
@@ -72,18 +73,24 @@
         "2026-06": 7947,
         "2026-07": 8012
       },
-      "avg_monthly": 6266.7,
-      "busiest_month": "2026-07",
-      "busiest_month_count": 8012,
-      "latest_month": "2026-07",
-      "latest_month_count": 8012,
-      "prior_month_count": 7947,
-      "month_over_month_percent": 0.8
+      "avg_monthly": 5975.8,
+      "busiest_month": "2026-06",
+      "busiest_month_count": 7947,
+      "latest_month": "2026-06",
+      "latest_month_count": 7947,
+      "prior_month_count": 6938,
+      "month_over_month_percent": 14.5,
+      "partial_month": "2026-07",
+      "partial_month_count": 8012,
+      "partial_month_days_elapsed": 27,
+      "partial_month_daily_rate": 296.7,
+      "prior_month_daily_rate": 264.9,
+      "daily_rate_change_percent": 12.0
     },
     "growth": {
       "period": "Monthly",
-      "periods_compared": 7,
-      "avg_growth_percent": 11.7,
+      "periods_compared": 6,
+      "avg_growth_percent": 13.9,
       "fastest_growth_period": "2026-03",
       "fastest_growth_percent": 35.1,
       "slowest_growth_period": "2026-04",

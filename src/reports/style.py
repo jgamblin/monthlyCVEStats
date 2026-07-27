@@ -96,6 +96,7 @@ LIGHT_COLORS = {
     "grid": "#dfe2e5",  # hairline grid / axis line
     "soft": "#f6f7f9",  # near-white panel
     "alert": "#dc2626",  # alert red — the highlighted (current year) series
+    "comparison": "#8da0b5",  # the prior-year series, 1.8:1 against alert
     "background": "#ffffff",
 }
 
@@ -109,6 +110,10 @@ DARK_COLORS = {
     "grid": "#2a3644",
     "soft": "#18212e",
     "alert": "#f87171",
+    # Its own token rather than reusing "neutral": on dark, "neutral" sits at
+    # 1.03:1 against alert, so the two series were separated only by dash and
+    # weight. This lifts the pair to 2.0:1 and 3.3:1 against the background.
+    "comparison": "#4a6b8f",
     "background": "#0f1620",
 }
 

@@ -1,6 +1,6 @@
 CVE growth has stopped looking like a spike and started looking like the baseline.
 
-July is at 8,012 published CVEs through July 27, which puts 2026 at 43,867 year to date (+59.9% year over year) and 211 new CVEs every day.
+July is at 8,012 published CVEs through July 27, which puts 2026 at 43,867 year to date (+62.9% year over year) and 211 new CVEs every day.
 
 Median CVSS came in at 7.4, with the 75th percentile at 8.2.
 

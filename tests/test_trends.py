@@ -64,3 +64,62 @@ def test_missing_date_column_returns_empty():
     assert analyzer.monthly_trend(df) == {}
     assert analyzer.growth_rate(df) == {}
     assert analyzer.year_over_year(df) == {}
+
+
+@pytest.fixture
+def year_with_partial_july():
+    """Jan-Jun complete, then a 27-day July that outcounts complete June."""
+    dates = []
+    counts = {1: 4309, 2: 4616, 3: 6234, 4: 5811, 5: 6938, 6: 7947}
+    for month, n in counts.items():
+        for i in range(n):
+            dates.append(f"2026-{month:02d}-{(i % 28) + 1:02d}")
+    for i in range(8012):
+        dates.append(f"2026-07-{(i % 27) + 1:02d}")
+    return frame(dates)
+
+
+def test_partial_month_excluded_from_rankings(year_with_partial_july):
+    """8,012 in 27 days must not be crowned busiest over 7,947 in 30."""
+    result = TrendAnalyzer().monthly_trend(
+        year_with_partial_july, partial_period="2026-07", partial_days=27
+    )
+
+    assert result["busiest_month"] == "2026-06"
+    assert result["busiest_month_count"] == 7947
+    # Month-over-month compares the last two WHOLE months, June against May.
+    assert result["latest_month"] == "2026-06"
+    assert result["month_over_month_percent"] == 14.5
+    # The average covers completed months only.
+    assert result["avg_monthly"] == 5975.8
+    # July is still reported, and still visible in the raw counts.
+    assert result["monthly_counts"]["2026-07"] == 8012
+    assert result["partial_month"] == "2026-07"
+    assert result["partial_month_count"] == 8012
+
+
+def test_partial_month_compared_on_a_daily_rate(year_with_partial_july):
+    """The only honest comparison for a part-month is a rate, not a total."""
+    result = TrendAnalyzer().monthly_trend(
+        year_with_partial_july, partial_period="2026-07", partial_days=27
+    )
+
+    assert result["partial_month_days_elapsed"] == 27
+    assert result["partial_month_daily_rate"] == 296.7  # 8012 / 27
+    assert result["prior_month_daily_rate"] == 264.9  # 7947 / 30
+    assert result["daily_rate_change_percent"] == 12.0
+
+
+def test_growth_rate_excludes_the_partial_month(year_with_partial_july):
+    result = TrendAnalyzer().growth_rate(
+        year_with_partial_july, partial_period="2026-07"
+    )
+    assert result["periods_compared"] == 6  # Jan-Jun, not 7
+    assert "2026-07" not in result["fastest_growth_period"]
+
+
+def test_no_partial_period_keeps_every_month(year_df):
+    """Without a partial period the behaviour is unchanged."""
+    result = TrendAnalyzer().monthly_trend(year_df)
+    assert "partial_month" not in result
+    assert result["busiest_month"] == "2026-02"

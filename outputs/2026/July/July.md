@@ -1,6 +1,6 @@
 # CVE Report - July 2026
 
-Generated 2026-07-27 14:20:18  ·  Source: NVD, excluding rejected CVEs. July 2026 is still in progress: data through July 27
+Generated 2026-07-27 14:51:13  ·  Source: NVD, excluding rejected CVEs. July 2026 is still in progress: data through July 27
 
 ## Summary
 
@@ -19,8 +19,8 @@ Generated 2026-07-27 14:20:18  ·  Source: NVD, excluding rejected CVEs. July 20
 | Mean | 7.09 |
 | Median | 7.4 |
 | Std dev | 1.71 |
-| Min | 0 |
-| Max | 10 |
+| Min | 0.0 |
+| Max | 10.0 |
 | Percentile 25 | 6.1 |
 | Percentile 75 | 8.2 |
 
@@ -81,6 +81,7 @@ Generated 2026-07-27 14:20:18  ·  Source: NVD, excluding rejected CVEs. July 20
 | Metric | Value |
 |---|---|
 | Days with CVEs | 27 |
+| Calendar days covered | 27 |
 | Avg CVEs per day | 296.7 |
 | Busiest day | 2026-07-21 |
 | Busiest day count | 1,474 |
@@ -91,13 +92,19 @@ Generated 2026-07-27 14:20:18  ·  Source: NVD, excluding rejected CVEs. July 20
 
 | Metric | Value |
 |---|---|
-| Avg monthly | 6,266.7 |
-| Busiest month | 2026-07 |
-| Busiest month count | 8,012 |
-| Latest month | 2026-07 |
-| Latest month count | 8,012 |
-| Prior month count | 7,947 |
-| Month over month percent | 0.8 |
+| Avg monthly | 5,975.8 |
+| Busiest month | 2026-06 |
+| Busiest month count | 7,947 |
+| Latest month | 2026-06 |
+| Latest month count | 7,947 |
+| Prior month count | 6,938 |
+| Month over month percent | 14.5 |
+| Partial month | 2026-07 |
+| Partial month count | 8,012 |
+| Partial month days elapsed | 27 |
+| Partial month daily rate | 296.7 |
+| Prior month daily rate | 264.9 |
+| Daily rate change percent | 12 |
 
 ### CVEs by month
 
@@ -116,8 +123,8 @@ Generated 2026-07-27 14:20:18  ·  Source: NVD, excluding rejected CVEs. July 20
 | Metric | Value |
 |---|---|
 | Period | Monthly |
-| Periods compared | 7 |
-| Avg growth percent | 11.7 |
+| Periods compared | 6 |
+| Avg growth percent | 13.9 |
 | Fastest growth period | 2026-03 |
 | Fastest growth percent | 35.1 |
 | Slowest growth period | 2026-04 |

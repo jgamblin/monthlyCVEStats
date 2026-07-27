@@ -20,6 +20,17 @@ def test_fmt_number_formatting():
     assert _fmt("May") == "May"
 
 
+def test_fmt_keeps_a_decimal_on_scores():
+    """A CVSS 0.0 rendered as "0" reads as missing data, and 10.0 as an int scale."""
+    assert _fmt(0.0, "min") == "0.0"
+    assert _fmt(10.0, "max") == "10.0"
+    assert _fmt(7.0, "median") == "7.0"
+    # A floor on precision, not a cap: a mean keeps its second decimal.
+    assert _fmt(6.862877792378449, "mean") == "6.86"
+    # Non-score keys are unaffected.
+    assert _fmt(30.0, "days_with_cves") == "30"
+
+
 def test_fmt_does_not_separate_years():
     """A year is an identifier, not a count: 2026, never 2,026."""
     assert _fmt(2026, "Year") == "2026"

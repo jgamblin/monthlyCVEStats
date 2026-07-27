@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-27T14:14:24.744948",
+  "generated_at": "2026-07-27T14:50:36.399390",
   "data": {
     "Summary": {
       "Month": "May",
@@ -56,6 +56,7 @@
     },
     "daily": {
       "days_with_cves": 31,
+      "calendar_days_covered": 31,
       "avg_cves_per_day": 223.8,
       "busiest_day": "2026-05-27",
       "busiest_day_count": 716,

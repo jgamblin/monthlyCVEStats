@@ -10,6 +10,7 @@ Generates comprehensive YTD statistics including:
 
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 import json
 
 
@@ -37,9 +38,17 @@ class YTDAnalyzer:
             - monthly_breakdown: Individual month counts
             - statistics: Growth rates and comparisons
         """
-        # Load current year data
+        # The current year's data necessarily stops at today. On a mid-month run
+        # that leaves the reporting month partial, so the previous year has to be
+        # cut at the same calendar point. Without this every year-over-year
+        # figure compares a part-month against the prior year's whole month and
+        # understates growth: through 2026-07-27 the 2025 baseline picked up an
+        # extra four days, 27,426 instead of 26,928, turning +62.9% into +59.9%.
+        now = datetime.now()
+        through = None if now.day == 1 else (now.month, now.day)
+
         current_ytd = self._load_year_data(self.current_year)
-        previous_ytd = self._load_year_data(self.current_year - 1)
+        previous_ytd = self._load_year_data(self.current_year - 1, through=through)
 
         # Calculate cumulative totals
         current_cumulative = self._calculate_cumulative(current_ytd)
@@ -65,12 +74,17 @@ class YTDAnalyzer:
             "statistics": stats,
         }
 
-    def _load_year_data(self, year: int) -> dict:
+    def _load_year_data(
+        self, year: int, through: Optional[tuple[int, int]] = None
+    ) -> dict:
         """
         Load month-by-month CVE counts for a year.
 
         Args:
             year: Year to load data for
+            through: Optional (month, day) cut-off. Records published after this
+                point in the year are excluded, so a prior year can be compared
+                against a partial current year over the same window.
 
         Returns:
             Dictionary mapping month number to CVE count
@@ -114,6 +128,15 @@ class YTDAnalyzer:
 
                 # Check if it's in the target year
                 if cve_date.year == year:
+                    if (
+                        through is not None
+                        and (
+                            cve_date.month,
+                            cve_date.day,
+                        )
+                        > through
+                    ):
+                        continue
                     monthly_counts[cve_date.month] += 1
 
             except (KeyError, ValueError, AttributeError):

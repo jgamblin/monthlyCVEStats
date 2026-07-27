@@ -128,7 +128,15 @@ class YTDVisualizer:
         geo = _GEOMETRY[ratio]
         previous_year = current_year - 1
         month_name = calendar.month_name[through_month]
-        through_date = self._get_month_name_for_last_day(through_month)
+        end_year, end_day, month_complete = self._period_end(through_month)
+        through_date = f"{month_name} {end_day}, {end_year}"
+        # The tile is what survives a crop, so it carries the real cut-off rather
+        # than a bare month name that reads as the whole month.
+        tile_through = (
+            month_name
+            if month_complete
+            else f"{calendar.month_abbr[through_month]} {end_day}"
+        )
 
         ytd_total = (
             stats.get("current_ytd_total", 0)
@@ -157,7 +165,7 @@ class YTDVisualizer:
 
         # --- stat cards -----------------------------------------------------
         cards = [
-            ("Total CVEs", f"{ytd_total:,}", f"Through {month_name}", None),
+            ("Total CVEs", f"{ytd_total:,}", f"Through {tile_through}", None),
             (
                 "YoY Growth",
                 f"{yoy_pct:+.1f}%",
@@ -193,7 +201,7 @@ class YTDVisualizer:
                 days,
                 previous_values,
                 linewidth=1.8,
-                color=colors["neutral"],
+                color=colors["comparison"],
                 label=str(previous_year),
                 linestyle="--",
                 zorder=2,
@@ -230,7 +238,7 @@ class YTDVisualizer:
                 marker="o",
                 markersize=5,
                 linewidth=1.8,
-                color=colors["neutral"],
+                color=colors["comparison"],
                 label=str(previous_year),
                 linestyle="--",
                 zorder=2,
@@ -266,7 +274,6 @@ class YTDVisualizer:
         # --- footer ---------------------------------------------------------
         # Rank only completed months: a part-month total is not comparable to a
         # whole one, so an in-progress month must not be called the busiest.
-        _, _, month_complete = self._period_end(through_month)
         ranked_through = through_month if month_complete else through_month - 1
         footer = self._month_extremes(
             monthly_data, previous_monthly_data, ranked_through
@@ -309,6 +316,10 @@ class YTDVisualizer:
         diff = last_current - last_previous
         diff_pct = (diff / last_previous * 100) if last_previous > 0 else 0
         mid_y = (last_current + last_previous) / 2
+        # Sit the label in the lower part of the gap. Centred, it lands on the
+        # highlighted current-year line, so the callout about that series was
+        # hiding the series.
+        label_y = last_previous + (last_current - last_previous) * 0.3
 
         ax.annotate(
             "",
@@ -325,7 +336,7 @@ class YTDVisualizer:
         )
         ax.text(
             last_day - max(days) * 0.015,
-            mid_y,
+            label_y,
             f"{diff:+,}\n({diff_pct:+.1f}%)",
             fontfamily=style.MONO_FONT,
             fontsize=9.5,
@@ -359,9 +370,14 @@ class YTDVisualizer:
 
         peak = max(non_zero, key=lambda month: non_zero[month])
         low = min(non_zero, key=lambda month: non_zero[month])
+        # "completed" is load-bearing: the ranking deliberately skips a month
+        # still in progress, so the label says so rather than leaving a reader to
+        # wonder why the highest bar on the chart is not named here.
         parts = [
-            f"Busiest month: {calendar.month_abbr[peak]} ({non_zero[peak]:,})",
-            f"Quietest month: {calendar.month_abbr[low]} ({non_zero[low]:,})",
+            f"Busiest completed month: {calendar.month_abbr[peak]} "
+            f"({non_zero[peak]:,})",
+            f"Quietest completed month: {calendar.month_abbr[low]} "
+            f"({non_zero[low]:,})",
         ]
 
         previous = previous_monthly_data or {}
@@ -373,9 +389,11 @@ class YTDVisualizer:
                 if growth > best_growth:
                     best_growth, best_month = growth, month
         if best_month:
+            # Name the comparison, so the number is not stranded next to the
+            # year-to-date growth figure looking like a rival for it.
             parts.append(
-                f"Fastest YoY growth: {calendar.month_abbr[best_month]} "
-                f"({best_growth:+.1f}%)"
+                f"Fastest YoY month: {calendar.month_abbr[best_month]}, "
+                f"{best_growth:+.1f}% vs {calendar.month_abbr[best_month]} last year"
             )
 
         return "  ·  ".join(parts)
@@ -405,20 +423,33 @@ class YTDVisualizer:
         previous_ytd: int,
         growth_percent: float,
         dark_mode: bool = False,
+        through_month: Optional[int] = None,
     ) -> Path:
-        """Render the year-over-year bar comparison."""
+        """Render the year-over-year bar comparison.
+
+        This is the most portable asset in the set, so it is the one most likely
+        to be reposted stripped of context. It therefore has to name the window
+        on its face: a bar labelled only "2025" reads as the whole of 2025.
+        """
         colors = style.apply_style(dark=dark_mode)
         ratio = "wide"
+
+        if through_month is not None:
+            end_year, end_day, _ = self._period_end(through_month)
+            window = (
+                f"Jan 1 to {calendar.month_abbr[through_month]} {end_day}, both years"
+            )
+        else:
+            window = "Same period both years"
 
         fig = plt.figure(figsize=style.figsize_for(ratio))
         fig.patch.set_facecolor(colors["background"])
 
         style.draw_header(
             fig,
-            title=f"Year to Date CVEs, {previous_year} vs {current_year}",
-            subtitle=(
-                f"Same period both years  ·  {growth_percent:+.1f}% year over year"
-            ),
+            # Current year first, matching the sibling growth chart's title.
+            title=f"Year to Date CVEs, {current_year} vs {previous_year}",
+            subtitle=f"{window}  ·  {growth_percent:+.1f}% year over year",
             colors=colors,
             ratio=ratio,
             eyebrow_suffix="YoY Comparison",

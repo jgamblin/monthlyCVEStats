@@ -37,11 +37,24 @@ class TrendAnalyzer:
         # the bucketing is explicitly on UTC wall time.
         return dates.dt.tz_convert(None)
 
-    def monthly_trend(self, df: pd.DataFrame) -> dict:
+    def monthly_trend(
+        self,
+        df: pd.DataFrame,
+        partial_period: Optional[str] = None,
+        partial_days: Optional[int] = None,
+    ) -> dict:
         """Analyze month-over-month trends.
+
+        Every ranked or averaged figure covers completed months only. A month
+        still in progress holds fewer days than the ones it would be compared
+        against, so ranking it as busiest or differencing it month-over-month
+        states a shortfall of days as a change in publication rate. The partial
+        month is still reported, labelled, and compared on a daily rate.
 
         Args:
             df: CVE DataFrame spanning two or more months
+            partial_period: Period to exclude from rankings, e.g. '2026-07'
+            partial_days: Days elapsed in that period, for its daily rate
 
         Returns:
             Dictionary of monthly counts and the latest month-over-month change
@@ -54,21 +67,43 @@ class TrendAnalyzer:
             counts = dates.dt.to_period("M").value_counts().sort_index()
             monthly_counts = {str(period): int(n) for period, n in counts.items()}
 
+            complete = counts[[str(p) != partial_period for p in counts.index]]
+            if complete.empty:
+                return {"monthly_counts": monthly_counts}
+
             result = {
                 "monthly_counts": monthly_counts,
-                "avg_monthly": round(float(counts.mean()), 1),
-                "busiest_month": str(counts.idxmax()),
-                "busiest_month_count": int(counts.max()),
+                "avg_monthly": round(float(complete.mean()), 1),
+                "busiest_month": str(complete.idxmax()),
+                "busiest_month_count": int(complete.max()),
             }
 
-            if len(counts) >= 2:
-                latest, prior = int(counts.iloc[-1]), int(counts.iloc[-2])
-                result["latest_month"] = str(counts.index[-1])
+            if len(complete) >= 2:
+                latest, prior = int(complete.iloc[-1]), int(complete.iloc[-2])
+                result["latest_month"] = str(complete.index[-1])
                 result["latest_month_count"] = latest
                 result["prior_month_count"] = prior
                 result["month_over_month_percent"] = (
                     round((latest - prior) / prior * 100, 1) if prior else 0.0
                 )
+
+            if partial_period and partial_period in monthly_counts:
+                partial_count = monthly_counts[partial_period]
+                result["partial_month"] = partial_period
+                result["partial_month_count"] = partial_count
+                if partial_days:
+                    result["partial_month_days_elapsed"] = partial_days
+                    rate = partial_count / partial_days
+                    result["partial_month_daily_rate"] = round(rate, 1)
+                    # Comparable to the last whole month only as a daily rate.
+                    last_days = complete.index[-1].days_in_month
+                    last_rate = int(complete.iloc[-1]) / last_days
+                    result["prior_month_daily_rate"] = round(last_rate, 1)
+                    result["daily_rate_change_percent"] = (
+                        round((rate - last_rate) / last_rate * 100, 1)
+                        if last_rate
+                        else 0.0
+                    )
 
             return result
         except Exception as e:
@@ -116,12 +151,19 @@ class TrendAnalyzer:
             self.logger.error(f"Error calculating YoY: {e}")
             return {}
 
-    def growth_rate(self, df: pd.DataFrame, period: str = "M") -> dict:
+    def growth_rate(
+        self,
+        df: pd.DataFrame,
+        period: str = "M",
+        partial_period: Optional[str] = None,
+    ) -> dict:
         """Calculate the growth rate of CVE publication over time.
 
         Args:
             df: CVE DataFrame spanning two or more periods
             period: Period for calculation ('D' daily, 'M' monthly, 'Y' yearly)
+            partial_period: Period still in progress, excluded from the rates so
+                a shortfall of days is not reported as negative growth
 
         Returns:
             Dictionary of growth metrics
@@ -132,6 +174,8 @@ class TrendAnalyzer:
 
         try:
             counts = dates.dt.to_period(period).value_counts().sort_index()
+            if partial_period:
+                counts = counts[[str(p) != partial_period for p in counts.index]]
             if len(counts) < 2:
                 self.logger.info(
                     "Only %d %s period(s) in the data; growth rate needs at least 2",

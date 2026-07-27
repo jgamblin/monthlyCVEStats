@@ -207,3 +207,86 @@ def test_unmapped_cwe_renders_its_id_once(analyzer):
     assert "CWE-9999 (CWE-9999)" not in text
     # Mapped ids still show both.
     assert "XSS (CWE-79): 10" in text
+
+
+def _fake_feed(tmp_path):
+    """A feed with 2025 and 2026 records either side of a mid-month cut-off."""
+    import json
+
+    records = []
+
+    def add(year, month, day, n):
+        for i in range(n):
+            records.append(
+                {
+                    "cve": {
+                        "id": f"CVE-{year}-{month:02d}{day:02d}{i:02d}",
+                        "published": f"{year}-{month:02d}-{day:02d}T12:00:00.000Z",
+                        "vulnStatus": "Analyzed",
+                    }
+                }
+            )
+
+    # 2025: 100 in June, 30 through Jul 27, then a 40-record tail Jul 28-31.
+    add(2025, 6, 15, 100)
+    add(2025, 7, 10, 30)
+    add(2025, 7, 29, 40)
+    # 2026: 100 in June, 60 through Jul 27. Nothing after, it has not happened.
+    add(2026, 6, 15, 100)
+    add(2026, 7, 10, 60)
+
+    path = tmp_path / "nvd.jsonl"
+    path.write_text(json.dumps(records))
+    return path
+
+
+def test_previous_year_is_cut_at_the_same_calendar_point(tmp_path, monkeypatch):
+    """A part-month must not be compared against the prior year's whole month.
+
+    Regression for the released +59.9%: the 2026 total stopped at Jul 27 while the
+    2025 baseline ran to Jul 31, so it carried four extra days of 2025 and
+    understated growth.
+    """
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 7, 27, 12, 0, 0)
+
+    monkeypatch.setattr("src.analysis.ytd_growth.datetime", FakeDatetime)
+
+    analyzer = YTDAnalyzer(_fake_feed(tmp_path))
+    analyzer.current_year = 2026
+    result = analyzer.analyze_ytd()
+    stats = result["statistics"]
+
+    # 2025 through Jul 27 is 130, not 170: the 40-record tail is excluded.
+    assert stats["previous_ytd_total"] == 130
+    assert stats["current_ytd_total"] == 160
+    assert stats["yoy_growth"] == 30
+    assert round(stats["yoy_percent"], 1) == 23.1
+
+    # The month figures line up over the same window too.
+    assert stats["previous_month_count"] == 30
+    assert stats["current_month_count"] == 60
+
+
+def test_first_of_month_run_compares_whole_months(tmp_path, monkeypatch):
+    """On the 1st the reporting month has finished, so nothing is truncated."""
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 8, 1, 5, 0, 0)
+
+    monkeypatch.setattr("src.analysis.ytd_growth.datetime", FakeDatetime)
+
+    analyzer = YTDAnalyzer(_fake_feed(tmp_path))
+    analyzer.current_year = 2026
+    stats = analyzer.analyze_ytd()["statistics"]
+
+    # Reporting on July: all of July 2025 counts, tail included.
+    assert stats["previous_ytd_total"] == 170
+    assert stats["previous_month_count"] == 70

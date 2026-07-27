@@ -1,6 +1,6 @@
 # CVE Report - June 2026
 
-Generated 2026-07-27 14:14:44  ·  Source: NVD, excluding rejected CVEs
+Generated 2026-07-27 14:50:55  ·  Source: NVD, excluding rejected CVEs
 
 ## Summary
 
@@ -19,8 +19,8 @@ Generated 2026-07-27 14:14:44  ·  Source: NVD, excluding rejected CVEs
 | Mean | 7.02 |
 | Median | 7.3 |
 | Std dev | 1.7 |
-| Min | 0 |
-| Max | 10 |
+| Min | 0.0 |
+| Max | 10.0 |
 | Percentile 25 | 5.5 |
 | Percentile 75 | 8.2 |
 
@@ -81,6 +81,7 @@ Generated 2026-07-27 14:14:44  ·  Source: NVD, excluding rejected CVEs
 | Metric | Value |
 |---|---|
 | Days with CVEs | 30 |
+| Calendar days covered | 30 |
 | Avg CVEs per day | 264.9 |
 | Busiest day | 2026-06-09 |
 | Busiest day count | 747 |

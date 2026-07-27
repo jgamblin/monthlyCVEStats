@@ -153,9 +153,16 @@ class StatisticsAnalyzer:
             busiest = daily_counts.idxmax()
             quietest = daily_counts.idxmin()
 
+            # Divide by calendar days spanned, not by days that happened to have
+            # a CVE. A zero-publication day would otherwise vanish from the
+            # denominator and silently inflate the average.
+            span = (daily_counts.index[-1] - daily_counts.index[0]).days + 1
+            calendar_days = max(span, 1)
+
             return {
                 "days_with_cves": int(len(daily_counts)),
-                "avg_cves_per_day": round(float(daily_counts.mean()), 1),
+                "calendar_days_covered": int(calendar_days),
+                "avg_cves_per_day": round(float(dates.size / calendar_days), 1),
                 "busiest_day": str(busiest),
                 "busiest_day_count": int(daily_counts.max()),
                 "quietest_day": str(quietest),
