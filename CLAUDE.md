@@ -55,7 +55,7 @@ mypy src/ --ignore-missing-imports
 - **`src/data/processor.py`** — Flattens nested CVE JSON into Pandas DataFrames, filters by date, extracts CVSS/CWE/CNA fields
 - **`src/analysis/statistics.py`** — CVSS distribution and severity bands, CNA rankings, CWE analysis, daily spread
 - **`src/analysis/trends.py`** — Month-over-month and year-over-year growth rates
-- **`src/analysis/ytd_growth.py`** — Year-to-date cumulative analysis, generates social post copy
+- **`src/analysis/ytd_growth.py`** — Year-to-date cumulative analysis, prior-full-year milestone, all-time totals, generates social post copy
 - **`src/reports/generator.py`** — Outputs Markdown, JSON, CSV reports
 - **`src/reports/style.py`** — Chart house style: palette, bundled fonts, header, stat cards, date stamp
 - **`src/reports/ytd_visualizer.py`** — Matplotlib charts (dark/light themes, wide/square/portrait ratios)
@@ -85,3 +85,5 @@ Reports go to `outputs/YYYY/MonthName/` (e.g. `outputs/2026/May/May.md` and `May
 - **The analyzers use explicit column names**, not substring probes. The CNA lives in `source_identifier` and the date in `published`, so probing for `'cna'` or `'date'` matches nothing and the section silently comes back empty. Candidate names are declared at the top of `src/analysis/statistics.py`.
 - **`TrendAnalyzer` needs more than one month.** `run_monthly` loads the whole year and slices the reporting month out of it, passing the year-wide frame to the trend methods and the month to everything else. A single-month frame yields an empty growth section.
 - **`post.txt` is also the release body**, referenced by name in `monthly-update.yml`. Renaming it breaks the release step.
+- **The README's year-to-date and all-time rows come from `outputs/YYYY/ytd_summary.json`**, written by `generate-ytd-report`. `update-readme-stats` must run after it, which is the order in the workflow. The rows are omitted rather than stale if the file is missing, so running `update-readme-stats` alone silently drops them.
+- **`YTDAnalyzer` scans the feed once and caches it** (`_scan`). Every figure it publishes is derived from that one pass. Adding another `json.load` of `data/nvd.jsonl` costs ~10 seconds and a few GB for data the scan already holds.

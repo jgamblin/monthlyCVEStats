@@ -1,5 +1,6 @@
 """Main CLI entry point for CVE statistics."""
 
+import json
 import sys
 from datetime import datetime
 from typing import Any, Optional
@@ -264,6 +265,22 @@ def generate_ytd_report() -> None:
         through_month=through_month,
     )
 
+    # Persist the statistics so update-readme-stats can carry the year-to-date
+    # and all-time figures without loading the 1.6 GB feed a second time.
+    summary_json = output_dir / "ytd_summary.json"
+    summary_json.write_text(
+        json.dumps(
+            {
+                "generated_at": datetime.now().isoformat(),
+                "year": analysis["current_year"],
+                "statistics": analysis["statistics"],
+            },
+            indent=2,
+            default=str,
+        )
+    )
+    logger.info(f"✓ YTD summary saved to {summary_json}")
+
     # Generate summary text
     logger.info("Generating summary text for social posts...")
     summary_text = ytd_analyzer.get_summary_text(analysis)
@@ -278,8 +295,6 @@ def generate_ytd_report() -> None:
     month_name = datetime(year, month, 1).strftime("%B")
     report_json = Config.get_report_output_dir(year, month) / f"{month_name}.json"
     if report_json.exists():
-        import json
-
         with open(report_json) as f:
             monthly_report = json.load(f).get("data", {})
         enriched_text = ytd_analyzer.get_enriched_text(analysis, monthly_report)

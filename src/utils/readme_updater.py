@@ -58,6 +58,8 @@ def update_readme(
         logger.error("Could not extract statistics from %s", latest_report)
         return False
 
+    stats.update(load_ytd_context(report_dir, stats["year"]))
+
     try:
         changed = update_readme_file(readme_path, stats)
     except MarkersNotFound as e:
@@ -117,6 +119,33 @@ def find_latest_report(report_dir: Path) -> Optional[Path]:
     if not json_files:
         return None
     return max(json_files, key=lambda p: p.stat().st_mtime)
+
+
+def load_ytd_context(report_dir: Path, year: str) -> dict:
+    """Year-to-date and all-time figures, written by generate-ytd-report.
+
+    Optional by design: the file is absent until a YTD run has happened, and the
+    stats block just omits those rows rather than failing. Reading it is what
+    keeps the README from having to load the 1.6 GB feed itself.
+    """
+    path = report_dir / str(year) / "ytd_summary.json"
+    if not path.exists():
+        logger.info("No %s yet; omitting year-to-date and all-time rows", path.name)
+        return {}
+
+    payload = _load_report(path)
+    if not payload:
+        return {}
+
+    statistics = payload.get("statistics", {})
+    context = {}
+    if statistics.get("current_ytd_total"):
+        context["ytd_total"] = f"{int(statistics['current_ytd_total']):,}"
+    if statistics.get("all_time_total"):
+        context["all_time_total"] = f"{int(statistics['all_time_total']):,}"
+    if statistics.get("first_year_on_record"):
+        context["first_year"] = str(statistics["first_year_on_record"])
+    return context
 
 
 def extract_stats(report: dict) -> Optional[dict]:
@@ -186,22 +215,31 @@ def render_stats_block(stats: dict) -> str:
     The whole table lives inside the block, header included: an HTML comment
     between a table header and its rows would break the table.
     """
-    heading = f"{stats['month']} {stats['year']}"
+    month_label = f"{stats['month']} {stats['year']}"
     if stats.get("in_progress"):
-        heading += " (in progress)"
+        month_label += " (in progress)"
 
-    return "\n".join(
-        [
-            f"| {heading} | |",
-            "|---|---|",
-            f"| CVEs published | {stats['total_cves']} |",
-            f"| Average per day | {stats['avg_cves_per_day']} |",
-            f"| Mean CVSS | {stats['mean_cvss']} |",
-            f"| Median CVSS | {stats['median_cvss']} |",
-            "",
-            f"Data through {stats['through_date']}, excluding rejected CVEs.",
-        ]
-    )
+    rows = [
+        "| Metric | Value |",
+        "|---|---|",
+        f"| CVEs published, {month_label} | {stats['total_cves']} |",
+    ]
+
+    # Year-to-date and all-time need a YTD run behind them, so they are optional.
+    if stats.get("ytd_total"):
+        rows.append(f"| {stats['year']} year to date | {stats['ytd_total']} |")
+    if stats.get("all_time_total"):
+        since = f", since {stats['first_year']}" if stats.get("first_year") else ""
+        rows.append(f"| All time{since} | {stats['all_time_total']} |")
+
+    rows += [
+        f"| Average per day, {stats['month']} | {stats['avg_cves_per_day']} |",
+        f"| Mean CVSS, {stats['month']} | {stats['mean_cvss']} |",
+        f"| Median CVSS, {stats['month']} | {stats['median_cvss']} |",
+        "",
+        f"Data through {stats['through_date']}, excluding rejected CVEs.",
+    ]
+    return "\n".join(rows)
 
 
 def update_readme_file(readme_path: Path, stats: dict) -> bool:

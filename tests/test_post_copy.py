@@ -290,3 +290,78 @@ def test_first_of_month_run_compares_whole_months(tmp_path, monkeypatch):
     # Reporting on July: all of July 2025 counts, tail included.
     assert stats["previous_ytd_total"] == 170
     assert stats["previous_month_count"] == 70
+
+
+def _milestone_analysis(ytd, previous_full, avg_per_day=211.0, current_month=7):
+    payload = analysis(yoy_percent=62.9)
+    payload["statistics"].update(
+        {
+            "current_month": current_month,
+            "current_ytd_total": ytd,
+            "avg_cves_per_day": avg_per_day,
+            "previous_year_full_total": previous_full,
+            "passed_previous_year_total": ytd >= previous_full,
+            "all_time_total": 352762,
+        }
+    )
+    if ytd < previous_full:
+        remaining = previous_full - ytd
+        payload["statistics"]["cves_to_pass_previous_year"] = remaining
+        payload["statistics"]["days_to_pass_previous_year"] = int(
+            remaining / avg_per_day
+        )
+        payload["statistics"]["projected_pass_date"] = "August 15"
+    return payload
+
+
+def test_pending_milestone_projects_the_crossover(analyzer, monkeypatch):
+    """43,867 against a full 2025 of 48,162 is a post waiting to happen."""
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 7, 27, 12, 0, 0)
+
+    monkeypatch.setattr("src.analysis.ytd_growth.datetime", FakeDatetime)
+
+    text = analyzer.get_summary_text(_milestone_analysis(43867, 48162))
+
+    assert "All of 2025 came to 48,162" in text
+    assert "4,295 CVEs" in text  # what is left to close the gap
+    assert "around August 15" in text
+    assert text.splitlines()[0] == (
+        "This year stops being a trend and starts being the new floor."
+    )
+
+
+def test_passed_milestone_leads_the_post(analyzer, monkeypatch):
+    """Overtaking a prior full year outranks any rate-of-growth framing."""
+    from datetime import datetime as real_datetime
+
+    class FakeDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 9, 1, 5, 0, 0)
+
+    monkeypatch.setattr("src.analysis.ytd_growth.datetime", FakeDatetime)
+
+    text = analyzer.get_summary_text(_milestone_analysis(50000, 48162, current_month=8))
+
+    assert text.splitlines()[0] == (
+        "Last year's record is no longer a ceiling, it is a midpoint."
+    )
+    assert "more CVEs than the whole of 2025 (48,162)" in text
+    assert "+1,838 past it" in text
+    assert "4 months still to run" in text
+    # Still house-clean.
+    for character in BANNED_CHARACTERS:
+        assert character not in text
+
+
+def test_no_milestone_line_without_a_prior_year(analyzer):
+    payload = analysis()
+    payload["statistics"]["previous_year_full_total"] = 0
+    text = analyzer.get_summary_text(payload)
+    assert "whole of" not in text
+    assert "came to" not in text

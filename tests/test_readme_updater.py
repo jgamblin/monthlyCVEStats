@@ -181,3 +181,55 @@ def test_in_progress_month_divides_by_days_elapsed(monkeypatch):
     assert "Data through July 27, 2026" in block
     # Never claim data through a date that has not happened.
     assert "July 31" not in block
+
+
+def test_stats_block_carries_ytd_and_all_time(monkeypatch):
+    """The front page shows more than one month when a YTD run has happened."""
+    _freeze(monkeypatch, 2026, 6, 1)
+    stats = extract_stats(SAMPLE_REPORT)
+    stats.update(
+        {"ytd_total": "43,867", "all_time_total": "352,762", "first_year": "1988"}
+    )
+    block = render_stats_block(stats)
+
+    assert "| CVEs published, May 2026 | 6,952 |" in block
+    assert "| 2026 year to date | 43,867 |" in block
+    assert "| All time, since 1988 | 352,762 |" in block
+    # The month-scoped rows say which month they belong to.
+    assert "| Average per day, May | 224.3 |" in block
+
+
+def test_stats_block_omits_ytd_rows_when_absent(monkeypatch):
+    """Before any YTD run the block still renders, just without those rows."""
+    _freeze(monkeypatch, 2026, 6, 1)
+    block = render_stats_block(extract_stats(SAMPLE_REPORT))
+
+    assert "| CVEs published, May 2026 | 6,952 |" in block
+    assert "year to date" not in block
+    assert "All time" not in block
+
+
+def test_load_ytd_context_reads_the_summary(tmp_path):
+    year_dir = tmp_path / "2026"
+    year_dir.mkdir()
+    (year_dir / "ytd_summary.json").write_text(
+        json.dumps(
+            {
+                "statistics": {
+                    "current_ytd_total": 43867,
+                    "all_time_total": 352762,
+                    "first_year_on_record": 1988,
+                }
+            }
+        )
+    )
+    context = readme_updater.load_ytd_context(tmp_path, "2026")
+    assert context == {
+        "ytd_total": "43,867",
+        "all_time_total": "352,762",
+        "first_year": "1988",
+    }
+
+
+def test_load_ytd_context_tolerates_a_missing_file(tmp_path):
+    assert readme_updater.load_ytd_context(tmp_path, "2026") == {}

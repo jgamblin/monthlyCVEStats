@@ -8,10 +8,14 @@ Generates comprehensive YTD statistics including:
 - Daily and monthly averages
 """
 
-from datetime import datetime
+from collections import Counter
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 import json
+
+# Prior full years shown alongside the current year to date.
+PRIOR_YEARS_SHOWN = 5
 
 
 class YTDAnalyzer:
@@ -26,6 +30,67 @@ class YTDAnalyzer:
         """
         self.data_file = data_file
         self.current_year = datetime.now().year
+        self._scan_cache: Optional[dict] = None
+
+    def _scan(self) -> dict:
+        """One cached pass over the feed.
+
+        Every figure this class publishes comes from the same records, so the
+        feed is read once and counted at (year, month, day) granularity. Monthly
+        counts, daily-of-year counts, per-year totals, and the all-time total are
+        all derived from that. The file is about 1.6 GB, so the three separate
+        passes this replaces cost three times as much for the same data.
+
+        Returns:
+            {"all_time": int, "yearly": Counter, "by_day": {year: Counter}}
+        """
+        if self._scan_cache is not None:
+            return self._scan_cache
+
+        all_time = 0
+        yearly: Counter = Counter()
+        by_day: dict = {}
+
+        try:
+            with open(self.data_file, "r") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            self._scan_cache = {"all_time": 0, "yearly": Counter(), "by_day": {}}
+            return self._scan_cache
+
+        cves = data if isinstance(data, list) else data.get("CVE_Items", [])
+
+        for cve in cves:
+            try:
+                cve_data = cve.get("cve", cve) if isinstance(cve, dict) else cve
+                if not isinstance(cve_data, dict):
+                    continue
+                if cve_data.get("vulnStatus", "") == "Rejected":
+                    continue
+
+                date_str = (
+                    cve_data.get("published")
+                    or cve_data.get("datePublished")
+                    or cve_data.get("date")
+                )
+                if not date_str:
+                    continue
+
+                cve_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                all_time += 1
+                yearly[cve_date.year] += 1
+                by_day.setdefault(cve_date.year, Counter())[
+                    (cve_date.month, cve_date.day)
+                ] += 1
+            except (KeyError, ValueError, AttributeError):
+                continue
+
+        self._scan_cache = {
+            "all_time": all_time,
+            "yearly": yearly,
+            "by_day": by_day,
+        }
+        return self._scan_cache
 
     def analyze_ytd(self) -> dict:
         """
@@ -78,7 +143,7 @@ class YTDAnalyzer:
         self, year: int, through: Optional[tuple[int, int]] = None
     ) -> dict:
         """
-        Load month-by-month CVE counts for a year.
+        Month-by-month CVE counts for a year, from the cached feed scan.
 
         Args:
             year: Year to load data for
@@ -90,112 +155,39 @@ class YTDAnalyzer:
             Dictionary mapping month number to CVE count
         """
         monthly_counts = {month: 0 for month in range(1, 13)}
-
-        try:
-            with open(self.data_file, "r") as f:
-                # The file contains a single JSON array
-                data = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return monthly_counts
-
-        # Handle both array and object formats
-        cves = data if isinstance(data, list) else data.get("CVE_Items", [])
-
-        for cve in cves:
-            try:
-                # Handle nested cve structure from NVD API format
-                cve_data = cve.get("cve", cve) if isinstance(cve, dict) else cve
-                if not isinstance(cve_data, dict):
-                    continue
-
-                # Skip rejected CVEs
-                status = cve_data.get("vulnStatus", "")
-                if status == "Rejected":
-                    continue
-
-                # Extract publication date
-                date_str = (
-                    cve_data.get("published")
-                    or cve_data.get("datePublished")
-                    or cve_data.get("date")
-                )
-
-                if not date_str:
-                    continue
-
-                # Parse date
-                cve_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-
-                # Check if it's in the target year
-                if cve_date.year == year:
-                    if (
-                        through is not None
-                        and (
-                            cve_date.month,
-                            cve_date.day,
-                        )
-                        > through
-                    ):
-                        continue
-                    monthly_counts[cve_date.month] += 1
-
-            except (KeyError, ValueError, AttributeError):
+        for (month, day), n in self._scan()["by_day"].get(year, {}).items():
+            if through is not None and (month, day) > through:
                 continue
-
+            monthly_counts[month] += n
         return monthly_counts
 
     def _load_daily_data(self) -> tuple[dict, dict]:
         """
-        Load daily cumulative CVE counts for current and previous year.
+        Daily cumulative CVE counts for the current and previous year.
+
+        Both years are truncated to the same day of the year, so the two plotted
+        series always cover the same window.
 
         Returns:
-            Tuple of (current_year_daily, previous_year_daily) where each is
-            a dict mapping day-of-year (1-366) to cumulative CVE count.
+            Tuple of (current_year_daily, previous_year_daily), each mapping
+            day-of-year to a cumulative count.
         """
-        from collections import Counter
-
         current_year = self.current_year
         previous_year = current_year - 1
+        by_day = self._scan()["by_day"]
 
-        current_daily: Counter = Counter()
-        previous_daily: Counter = Counter()
+        def doy_counts(year: int) -> Counter:
+            counts: Counter = Counter()
+            for (month, day), n in by_day.get(year, {}).items():
+                try:
+                    counts[date(year, month, day).timetuple().tm_yday] += n
+                except ValueError:
+                    continue  # e.g. Feb 29 recorded against a non-leap year
+            return counts
 
-        try:
-            with open(self.data_file, "r") as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return {}, {}
+        current_daily = doy_counts(current_year)
+        previous_daily = doy_counts(previous_year)
 
-        cves = data if isinstance(data, list) else data.get("CVE_Items", [])
-
-        for cve in cves:
-            try:
-                cve_data = cve.get("cve", cve) if isinstance(cve, dict) else cve
-                if not isinstance(cve_data, dict):
-                    continue
-                if cve_data.get("vulnStatus", "") == "Rejected":
-                    continue
-
-                date_str = (
-                    cve_data.get("published")
-                    or cve_data.get("datePublished")
-                    or cve_data.get("date")
-                )
-                if not date_str:
-                    continue
-
-                cve_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                doy = cve_date.timetuple().tm_yday
-
-                if cve_date.year == current_year:
-                    current_daily[doy] += 1
-                elif cve_date.year == previous_year:
-                    previous_daily[doy] += 1
-
-            except (KeyError, ValueError, AttributeError):
-                continue
-
-        # Convert to cumulative
         def to_cumulative(daily_counts: Counter, max_day: int) -> dict:
             cumulative = {}
             total = 0
@@ -204,19 +196,17 @@ class YTDAnalyzer:
                 cumulative[day] = total
             return cumulative
 
-        # Determine how many days to include
         today = datetime.now()
         if today.day == 1:
-            # Report through end of previous month
+            # Reporting on the completed previous month.
             current_max = (today - today.replace(month=1, day=1)).days
         else:
             current_max = today.timetuple().tm_yday
 
-        # For previous year, show same number of days for comparison
-        current_cum = to_cumulative(current_daily, current_max)
-        previous_cum = to_cumulative(previous_daily, current_max)
-
-        return current_cum, previous_cum
+        return (
+            to_cumulative(current_daily, current_max),
+            to_cumulative(previous_daily, current_max),
+        )
 
     def _calculate_cumulative(self, monthly_data: dict) -> dict:
         """
@@ -292,7 +282,7 @@ class YTDAnalyzer:
             day_of_year = today.timetuple().tm_yday
         avg_per_day = current_ytd_total / day_of_year if day_of_year > 0 else 0
 
-        return {
+        stats = {
             "current_month": current_month,
             "current_ytd_total": current_ytd_total,
             "previous_ytd_total": previous_ytd_total,
@@ -304,6 +294,53 @@ class YTDAnalyzer:
             "month_percent": month_percent,
             "avg_cves_per_day": avg_per_day,
         }
+        stats.update(self._long_run_context(current_ytd_total, avg_per_day))
+        return stats
+
+    def _long_run_context(self, current_ytd_total: int, avg_per_day: float) -> dict:
+        """All-time and prior-full-year context for the year to date.
+
+        The rest of this class only ever compares the current year against the
+        same point in the previous one, which cannot see the milestone that
+        matters most: the year to date overtaking a prior year's *complete*
+        total. Prior-year totals are deliberately not truncated, because "more
+        than all of last year" is the claim being tested.
+        """
+        scan = self._scan()
+        yearly = scan["yearly"]
+        previous_year = self.current_year - 1
+        previous_full = int(yearly.get(previous_year, 0))
+
+        prior_totals = {
+            int(year): int(yearly[year])
+            for year in sorted(yearly)
+            if year < self.current_year
+        }
+        recent = dict(list(prior_totals.items())[-PRIOR_YEARS_SHOWN:])
+
+        context: dict[str, Any] = {
+            "all_time_total": int(scan["all_time"]),
+            "first_year_on_record": min(prior_totals) if prior_totals else None,
+            "prior_year_totals": recent,
+            "previous_year_full_total": previous_full,
+            "passed_previous_year_total": bool(
+                previous_full and current_ytd_total >= previous_full
+            ),
+        }
+
+        remaining = previous_full - current_ytd_total
+        if previous_full and remaining > 0 and avg_per_day > 0:
+            days_needed = int(remaining / avg_per_day) + 1
+            context["cves_to_pass_previous_year"] = remaining
+            context["days_to_pass_previous_year"] = days_needed
+            # Only a projection, and only worth stating while it lands this year.
+            projected = datetime.now() + timedelta(days=days_needed)
+            if projected.year == self.current_year:
+                context["projected_pass_date"] = (
+                    f"{projected.strftime('%B')} {projected.day}"
+                )
+
+        return context
 
     @staticmethod
     def _opening_claim(stats: dict, month_complete: bool = True) -> str:
@@ -317,6 +354,13 @@ class YTDAnalyzer:
         """
         yoy = stats["yoy_percent"]
         month = stats["month_percent"] if month_complete else 0.0
+
+        # Overtaking a prior year's complete total is the strongest arguable line
+        # available, so it outranks any rate-of-growth framing when it happens.
+        if stats.get("passed_previous_year_total"):
+            return "Last year's record is no longer a ceiling, it is a midpoint."
+        if stats.get("projected_pass_date"):
+            return "This year stops being a trend and starts being the new floor."
 
         if not month_complete:
             if yoy >= 25:
@@ -411,11 +455,46 @@ class YTDAnalyzer:
             f"{self._opening_claim(stats, complete)}\n\n"
             f"{month_line}\n\n"
             f"That puts {year} at {ytd_total} CVEs year to date, {ytd_pct} year over "
-            f"year, and {avg_per_day} new CVEs every day. Against the same point in "
-            f"{previous_year} the gap is {ytd_diff} CVEs.\n\n"
+            f"year, and {avg_per_day} new CVEs every day."
+            f"{self._milestone_line(stats, year, previous_year)}\n\n"
             f"{self._closing_question(stats)}\n\n"
             f"Source: NVD, excluding rejected CVEs"
         )
+
+    @staticmethod
+    def _milestone_line(stats: dict, year: int, previous_year: int) -> str:
+        """The prior-full-year comparison, when there is one worth stating.
+
+        Returns a sentence to append, or an empty string. Kept to one sentence so
+        it sharpens the paragraph instead of bloating it.
+        """
+        previous_full = stats.get("previous_year_full_total") or 0
+        if not previous_full:
+            return ""
+
+        if stats.get("passed_previous_year_total"):
+            surplus = stats["current_ytd_total"] - previous_full
+            months_left = 12 - stats["current_month"]
+            tail = (
+                f" with {months_left} months still to run"
+                if months_left > 0
+                else " before the year is out"
+            )
+            return (
+                f" {year} has now published more CVEs than the whole of "
+                f"{previous_year} ({previous_full:,}), and is {surplus:+,} past it"
+                f"{tail}."
+            )
+
+        projected = stats.get("projected_pass_date")
+        if projected:
+            remaining = stats["cves_to_pass_previous_year"]
+            return (
+                f" All of {previous_year} came to {previous_full:,}, so at the "
+                f"current rate {year} passes a full {previous_year} in another "
+                f"{remaining:,} CVEs, around {projected}."
+            )
+        return ""
 
     def get_enriched_text(self, analysis: dict, monthly_report: dict) -> str:
         """

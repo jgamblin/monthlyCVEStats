@@ -11,12 +11,14 @@ ready to paste. It shares its chart styling with
 ## Where it stands
 
 <!-- STATS:START -->
-| July 2026 (in progress) | |
+| Metric | Value |
 |---|---|
-| CVEs published | 8,012 |
-| Average per day | 296.7 |
-| Mean CVSS | 7.09 |
-| Median CVSS | 7.4 |
+| CVEs published, July 2026 (in progress) | 8,012 |
+| 2026 year to date | 43,867 |
+| All time, since 1988 | 352,762 |
+| Average per day, July | 296.7 |
+| Mean CVSS, July | 7.09 |
+| Median CVSS, July | 7.4 |
 
 Data through July 27, 2026, excluding rejected CVEs.
 <!-- STATS:END -->
@@ -70,8 +72,8 @@ summer and 4:00 AM in winter, and does the following:
 1. `download-data` refreshes `data/nvd.jsonl` from the NVD mirror.
 2. `run-monthly` writes `outputs/YYYY/Month/Month.{md,json}` for the completed
    month, with the trend sections computed across the full year to date.
-3. `generate-ytd-report` renders the charts and writes `post.txt` and
-   `enriched_post.txt`.
+3. `generate-ytd-report` renders the charts and writes `post.txt`,
+   `enriched_post.txt`, and `ytd_summary.json`.
 4. `update-readme-stats` regenerates the stats block in this README.
 5. The run commits `outputs/` and `README.md`, then cuts a GitHub release using
    `post.txt` as the body.
@@ -91,10 +93,16 @@ outputs/2026/
   YOY_CVE_Comparison_2026_vs_2025.png
   post.txt                              # the social post, also the release body
   enriched_post.txt                     # longer version with CVSS and CWE detail
+  ytd_summary.json                      # YTD + all-time figures for the README block
 ```
 
 Each report covers CVSS scores and severity bands, the most active CNAs, the most
 common weakness types, the daily publication spread, and the year-to-date trend.
+
+The year-to-date analysis also compares against prior *complete* years, not just
+the same point last year, so the post copy can call the moment the current year
+overtakes a previous year's full total. Through July 27, 2026 sits 4,295 CVEs
+short of all of 2025 and is on track to pass it around August 17.
 
 ## Charts
 
