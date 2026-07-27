@@ -1,38 +1,44 @@
 # CVE Report - May 2026
 
-**Generated:** 2026-06-01 12:05:40
+Generated 2026-06-01 12:05:40  ·  Source: NVD, excluding rejected CVEs
 
 ## Summary
 
-- **Month**: May
-- **Year**: 2026
-- **Total CVEs**: 6952
-- **Generated**: 2026-06-01 12:05:40
+| Metric | Value |
+|---|---|
+| Month | May |
+| Year | 2026 |
+| Total CVEs | 6,952 |
 
-## cvss
+## CVSS Scores
 
-- **mean**: 6.862877792378449
-- **median**: 7.1
-- **std_dev**: 1.7225440313817466
-- **min**: 0.0
-- **max**: 10.0
-- **percentile_25**: 5.5
-- **percentile_75**: 8.1
+| Metric | Value |
+|---|---|
+| Mean | 6.86 |
+| Median | 7.1 |
+| Std dev | 1.72 |
+| Min | 0 |
+| Max | 10 |
+| Percentile 25 | 5.5 |
+| Percentile 75 | 8.1 |
 
-## cna
+## Weakness Types
 
+| Metric | Value |
+|---|---|
+| Total unique CWEs | 340 |
 
-## cwe
+### Most common weaknesses
 
-- **top_cwes**: {'CWE-79': 571, 'CWE-89': 280, 'NVD-CWE-noinfo': 258, 'CWE-862': 253, 'CWE-416': 229, 'CWE-22': 218, 'CWE-20': 167, 'CWE-119': 161, 'CWE-74': 161, 'CWE-918': 145}
-- **total_unique_cwes**: 340
-
-## daily
-
-
-## monthly_trend
-
-
-## growth
-
-
+| # | CWE | CVEs |
+|---|---|---|
+| 1 | CWE-79 | 571 |
+| 2 | CWE-89 | 280 |
+| 3 | NVD-CWE-noinfo | 258 |
+| 4 | CWE-862 | 253 |
+| 5 | CWE-416 | 229 |
+| 6 | CWE-22 | 218 |
+| 7 | CWE-20 | 167 |
+| 8 | CWE-119 | 161 |
+| 9 | CWE-74 | 161 |
+| 10 | CWE-918 | 145 |

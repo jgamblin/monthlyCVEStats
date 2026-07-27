@@ -1,12 +1,9 @@
-May 2026 CVE Growth Report:
+CVE growth has stopped looking like a spike and started looking like the baseline.
 
-YTD (May):
-► 27,937 total CVEs (+39.9% vs 2025 YTD)
-► 185 new vulnerabilities per day
-► +7,961 more CVEs than 2025 through May
+May 2026 closed at 6,952 published CVEs, +74.7% against May 2025.
 
-May alone:
-► 6,952 CVEs (+74.7% vs May 2025)
+That puts 2026 at 27,937 CVEs year to date, +39.9% year over year, and 185 new CVEs every day. Against the same point in 2025 the gap is +7,961 CVEs.
 
-Context:
-After the CVE volume in May 2025, May is tracking at +74.7% — pushing YTD growth from 39.9%.
+If this is the new baseline, what gives out first in your triage?
+
+Source: NVD, excluding rejected CVEs

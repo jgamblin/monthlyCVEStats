@@ -1,13 +1,18 @@
-May saw 6,952 new CVEs — +74.7% over May 2025 and pushing 2026 YTD to 27,937 (+39.9% YoY). That's 185 new vulnerabilities per day.
-Median CVSS: 7.1 (75th percentile: 8.1)
+CVE growth has stopped looking like a spike and started looking like the baseline.
 
-Top weaknesses:
+May closed at 6,952 published CVEs, +74.7% against May 2025, which puts 2026 at 27,937 year to date (+39.9% year over year) and 185 new CVEs every day.
+
+Median CVSS came in at 7.1, with the 75th percentile at 8.1.
+
+Most common weaknesses:
   XSS (CWE-79): 571
   SQL Injection (CWE-89): 280
-  NVD-CWE-noinfo (NVD-CWE-noinfo): 258
+  Not specified (NVD-CWE-noinfo): 258
   Missing Authorization (CWE-862): 253
   Use After Free (CWE-416): 229
 
-Data: NVD (excluding rejected CVEs)
+If this is the new baseline, what gives out first in your triage?
 
-#CVE #VulnerabilityManagement #InfoSec #CyberSecurity
+Source: NVD, excluding rejected CVEs
+
+#CVE #VulnerabilityManagement #InfoSec
