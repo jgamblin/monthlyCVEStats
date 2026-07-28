@@ -2,116 +2,200 @@
 
 import logging
 from typing import Optional
+
 import pandas as pd
+
+from src.analysis.statistics import DATE_COLUMNS, find_column
+
+# Pandas period codes are not report copy.
+_PERIOD_LABELS = {"D": "Daily", "M": "Monthly", "Y": "Yearly"}
 
 
 class TrendAnalyzer:
-    """Analyze trends in CVE data."""
+    """Analyze trends in CVE data.
+
+    These methods need more than one period to say anything, so callers should
+    pass a DataFrame spanning the whole year rather than a single month.
+    """
 
     def __init__(self):
         """Initialize analyzer."""
         self.logger = logging.getLogger(__name__)
 
-    def monthly_trend(self, df: pd.DataFrame) -> dict:
-        """Analyze month-over-month trends.
-        
-        Args:
-            df: CVE DataFrame
-            
-        Returns:
-            Dictionary of monthly trends
-        """
-        date_columns = [col for col in df.columns if 'date' in col.lower()]
+    def _dates(self, df: pd.DataFrame) -> Optional[pd.Series]:
+        """Parsed publication dates, or None when the column is absent."""
+        date_col = find_column(df, DATE_COLUMNS)
+        if date_col is None:
+            self.logger.warning(
+                "No date column found (looked for %s)", ", ".join(DATE_COLUMNS)
+            )
+            return None
+        dates = pd.to_datetime(df[date_col], errors="coerce", utc=True).dropna()
+        if dates.empty:
+            return None
+        # to_period() drops the timezone with a warning. Drop it here instead so
+        # the bucketing is explicitly on UTC wall time.
+        return dates.dt.tz_convert(None)
 
-        if not date_columns:
+    def monthly_trend(
+        self,
+        df: pd.DataFrame,
+        partial_period: Optional[str] = None,
+        partial_days: Optional[int] = None,
+    ) -> dict:
+        """Analyze month-over-month trends.
+
+        Every ranked or averaged figure covers completed months only. A month
+        still in progress holds fewer days than the ones it would be compared
+        against, so ranking it as busiest or differencing it month-over-month
+        states a shortfall of days as a change in publication rate. The partial
+        month is still reported, labelled, and compared on a daily rate.
+
+        Args:
+            df: CVE DataFrame spanning two or more months
+            partial_period: Period to exclude from rankings, e.g. '2026-07'
+            partial_days: Days elapsed in that period, for its daily rate
+
+        Returns:
+            Dictionary of monthly counts and the latest month-over-month change
+        """
+        dates = self._dates(df)
+        if dates is None:
             return {}
 
-        date_col = date_columns[0]
-
         try:
-            df[date_col] = pd.to_datetime(df[date_col])
-            monthly_counts = df.groupby(df[date_col].dt.to_period('M')).size()
+            counts = dates.dt.to_period("M").value_counts().sort_index()
+            monthly_counts = {str(period): int(n) for period, n in counts.items()}
 
-            return {
-                "monthly_counts": monthly_counts.to_dict(),
-                "avg_monthly": float(monthly_counts.mean()),
+            complete = counts[[str(p) != partial_period for p in counts.index]]
+            if complete.empty:
+                return {"monthly_counts": monthly_counts}
+
+            result = {
+                "monthly_counts": monthly_counts,
+                "avg_monthly": round(float(complete.mean()), 1),
+                "busiest_month": str(complete.idxmax()),
+                "busiest_month_count": int(complete.max()),
             }
+
+            if len(complete) >= 2:
+                latest, prior = int(complete.iloc[-1]), int(complete.iloc[-2])
+                result["latest_month"] = str(complete.index[-1])
+                result["latest_month_count"] = latest
+                result["prior_month_count"] = prior
+                result["month_over_month_percent"] = (
+                    round((latest - prior) / prior * 100, 1) if prior else 0.0
+                )
+
+            if partial_period and partial_period in monthly_counts:
+                partial_count = monthly_counts[partial_period]
+                result["partial_month"] = partial_period
+                result["partial_month_count"] = partial_count
+                if partial_days:
+                    result["partial_month_days_elapsed"] = partial_days
+                    rate = partial_count / partial_days
+                    result["partial_month_daily_rate"] = round(rate, 1)
+                    # Comparable to the last whole month only as a daily rate.
+                    last_days = complete.index[-1].days_in_month
+                    last_rate = int(complete.iloc[-1]) / last_days
+                    result["prior_month_daily_rate"] = round(last_rate, 1)
+                    result["daily_rate_change_percent"] = (
+                        round((rate - last_rate) / last_rate * 100, 1)
+                        if last_rate
+                        else 0.0
+                    )
+
+            return result
         except Exception as e:
             self.logger.error(f"Error calculating monthly trend: {e}")
             return {}
 
-    def year_over_year(self, df: pd.DataFrame, compare_years: tuple = None) -> dict:
-        """Compare CVE statistics across years.
-        
+    def year_over_year(
+        self, df: pd.DataFrame, compare_years: Optional[tuple] = None
+    ) -> dict:
+        """Compare CVE counts across years.
+
         Args:
             df: CVE DataFrame
-            compare_years: Tuple of (year1, year2) to compare
-            
+            compare_years: Tuple of (earlier_year, later_year) to compare
+
         Returns:
             Dictionary of YoY comparison
         """
-        date_columns = [col for col in df.columns if 'date' in col.lower()]
-
-        if not date_columns:
+        dates = self._dates(df)
+        if dates is None:
             return {}
 
-        date_col = date_columns[0]
-
         try:
-            df[date_col] = pd.to_datetime(df[date_col])
-            df['year'] = df[date_col].dt.year
+            years = dates.dt.year
 
             if compare_years:
                 year1, year2 = compare_years
-                df1 = df[df['year'] == year1]
-                df2 = df[df['year'] == year2]
-
+                count1 = int((years == year1).sum())
+                count2 = int((years == year2).sum())
                 return {
-                    f"year_{year1}": len(df1),
-                    f"year_{year2}": len(df2),
-                    "growth_percent": (len(df2) - len(df1)) / len(df1) * 100 if len(df1) > 0 else 0,
+                    f"year_{year1}": count1,
+                    f"year_{year2}": count2,
+                    "growth_percent": (
+                        round((count2 - count1) / count1 * 100, 1) if count1 else 0.0
+                    ),
                 }
 
-            # Return all years if no specific comparison
-            yearly_counts = df.groupby('year').size()
             return {
-                "yearly_counts": yearly_counts.to_dict(),
+                "yearly_counts": {
+                    int(year): int(n)
+                    for year, n in years.value_counts().sort_index().items()
+                }
             }
         except Exception as e:
             self.logger.error(f"Error calculating YoY: {e}")
             return {}
 
-    def growth_rate(self, df: pd.DataFrame, period: str = 'M') -> dict:
-        """Calculate growth rate of CVEs over time.
-        
+    def growth_rate(
+        self,
+        df: pd.DataFrame,
+        period: str = "M",
+        partial_period: Optional[str] = None,
+    ) -> dict:
+        """Calculate the growth rate of CVE publication over time.
+
         Args:
-            df: CVE DataFrame
-            period: Period for calculation ('D' for daily, 'M' for monthly, 'Y' for yearly)
-            
+            df: CVE DataFrame spanning two or more periods
+            period: Period for calculation ('D' daily, 'M' monthly, 'Y' yearly)
+            partial_period: Period still in progress, excluded from the rates so
+                a shortfall of days is not reported as negative growth
+
         Returns:
             Dictionary of growth metrics
         """
-        date_columns = [col for col in df.columns if 'date' in col.lower()]
-
-        if not date_columns:
+        dates = self._dates(df)
+        if dates is None:
             return {}
 
-        date_col = date_columns[0]
-
         try:
-            df[date_col] = pd.to_datetime(df[date_col])
-            period_counts = df.groupby(df[date_col].dt.to_period(period)).size()
-
-            if len(period_counts) < 2:
+            counts = dates.dt.to_period(period).value_counts().sort_index()
+            if partial_period:
+                counts = counts[[str(p) != partial_period for p in counts.index]]
+            if len(counts) < 2:
+                self.logger.info(
+                    "Only %d %s period(s) in the data; growth rate needs at least 2",
+                    len(counts),
+                    period,
+                )
                 return {}
 
-            # Calculate growth rate between periods
-            growth_rates = period_counts.pct_change() * 100
+            growth = counts.pct_change().dropna() * 100
+            fastest = growth.idxmax()
+            slowest = growth.idxmin()
 
             return {
-                "avg_growth_rate": float(growth_rates.mean()),
-                "max_growth_rate": float(growth_rates.max()),
-                "min_growth_rate": float(growth_rates.min()),
+                "period": _PERIOD_LABELS.get(period, period),
+                "periods_compared": int(len(counts)),
+                "avg_growth_percent": round(float(growth.mean()), 1),
+                "fastest_growth_period": str(fastest),
+                "fastest_growth_percent": round(float(growth.max()), 1),
+                "slowest_growth_period": str(slowest),
+                "slowest_growth_percent": round(float(growth.min()), 1),
             }
         except Exception as e:
             self.logger.error(f"Error calculating growth rate: {e}")

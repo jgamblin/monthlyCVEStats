@@ -19,7 +19,7 @@ class NVDDownloader:
         chunk_size: int = 1024 * 1024,  # 1 MB
     ):
         """Initialize downloader.
-        
+
         Args:
             output_file: Path to save downloaded data
             source_url: URL to download from
@@ -32,10 +32,10 @@ class NVDDownloader:
 
     def _get_session_with_retries(self, retries: int = 3) -> requests.Session:
         """Create a requests session with retry logic.
-        
+
         Args:
             retries: Number of retries for failed requests
-            
+
         Returns:
             Configured requests.Session
         """
@@ -52,7 +52,7 @@ class NVDDownloader:
 
     def _get_remote_size(self) -> Optional[int]:
         """Get the size of the remote file.
-        
+
         Returns:
             File size in bytes, or None if unable to determine
         """
@@ -60,7 +60,7 @@ class NVDDownloader:
             session = self._get_session_with_retries()
             response = session.head(self.source_url, timeout=10, allow_redirects=True)
             response.raise_for_status()
-            
+
             if "content-length" in response.headers:
                 return int(response.headers["content-length"])
             return None
@@ -70,10 +70,10 @@ class NVDDownloader:
 
     def download(self, resume: bool = True) -> bool:
         """Download NVD data with optional resume support.
-        
+
         Args:
             resume: Whether to resume partial downloads
-            
+
         Returns:
             True if download successful, False otherwise
         """
@@ -92,7 +92,7 @@ class NVDDownloader:
         try:
             session = self._get_session_with_retries()
             remote_size = self._get_remote_size()
-            
+
             response = session.get(
                 self.source_url,
                 headers=headers,
@@ -130,7 +130,7 @@ class NVDDownloader:
 
     def verify(self) -> bool:
         """Verify the downloaded file is valid.
-        
+
         Returns:
             True if file exists and is readable
         """
@@ -149,6 +149,7 @@ class NVDDownloader:
                 first_line = f.readline()
                 if first_line.strip():
                     import json
+
                     json.loads(first_line)
                     self.logger.info(
                         f"✓ File verified ({file_size:,} bytes, "

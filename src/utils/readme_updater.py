@@ -1,169 +1,275 @@
 """
-Update README.md with latest statistics from generated reports.
+Update README.md with statistics from the latest generated report.
 
-This module updates the README badge and statistics section with the latest
-data from the most recent monthly report.
+The stats live between two HTML comment markers and the whole block is
+regenerated on each run, so the README's prose and structure can change freely
+without breaking the monthly update. The previous version matched the README's
+badge URL and table rows with regexes; when the wording moved, the substitutions
+found nothing and the update reported success having changed nothing.
 """
 
 import calendar
 import json
-import re
-from pathlib import Path
+import logging
 from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+START_MARKER = "<!-- STATS:START -->"
+END_MARKER = "<!-- STATS:END -->"
 
 
-def update_readme(report_dir: Path = None) -> bool:
+class MarkersNotFound(RuntimeError):
+    """Raised when README.md is missing the stats markers."""
+
+
+def update_readme(
+    report_dir: Optional[Path] = None, readme_path: Optional[Path] = None
+) -> bool:
     """
     Update README.md with statistics from the latest report.
 
-    Searches for the most recent report in outputs/ and updates:
-    - LAST_UPDATE_DATE badge
-    - TOTAL_CVES count
-    - AVG_CVES_PER_DAY value
-    - AVG_CVSS_SCORE value
-
     Args:
         report_dir: Directory containing reports (defaults to outputs/)
+        readme_path: README to update (defaults to the repo root README.md)
 
     Returns:
-        bool: True if update was successful, False otherwise
+        bool: True if the file was updated, False otherwise
     """
+    project_root = Path(__file__).parent.parent.parent
     if report_dir is None:
-        report_dir = Path(__file__).parent.parent.parent / "outputs"
+        report_dir = project_root / "outputs"
+    if readme_path is None:
+        readme_path = project_root / "README.md"
 
-    # Find the most recent report
     latest_report = find_latest_report(report_dir)
     if not latest_report:
-        print(f"No reports found in {report_dir}")
+        logger.error("No reports found in %s", report_dir)
         return False
 
-    # Load the report JSON
-    try:
-        with open(latest_report, "r") as f:
-            report = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        print(f"Error reading report {latest_report}: {e}")
+    report = _load_report(latest_report)
+    if report is None:
         return False
 
-    # Extract statistics
     stats = extract_stats(report)
     if not stats:
-        print("Could not extract statistics from report")
+        logger.error("Could not extract statistics from %s", latest_report)
         return False
 
-    # Update README
-    readme_path = Path(__file__).parent.parent.parent / "README.md"
+    stats.update(load_ytd_context(report_dir, stats["year"]))
+
     try:
-        update_readme_file(readme_path, stats)
-        print(f"✓ Updated README with statistics from {latest_report.name}")
-        return True
-    except Exception as e:
-        print(f"Error updating README: {e}")
+        changed = update_readme_file(readme_path, stats)
+    except MarkersNotFound as e:
+        logger.error("%s", e)
+        return False
+    except OSError as e:
+        logger.error("Error updating README: %s", e)
         return False
 
+    if changed:
+        logger.info("Updated README with statistics from %s", latest_report.name)
+    else:
+        logger.info("README already current with %s", latest_report.name)
+    return True
 
-def find_latest_report(report_dir: Path) -> Path | None:
+
+def _load_report(path: Path) -> Optional[dict]:
+    """Parse a report JSON, logging and returning None on failure."""
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        logger.error("Error reading report %s: %s", path, e)
+        return None
+
+
+def find_latest_report(report_dir: Path) -> Optional[Path]:
     """
-    Find the most recent report JSON file in the outputs directory.
+    Find the report JSON to publish.
 
-    Searches recursively for all .json files and returns the most recently
-    modified one.
+    Prefers the report for the month the pipeline is currently reporting on;
+    falls back to the most recently modified JSON so manual runs still work.
 
     Args:
         report_dir: Root directory containing reports
 
     Returns:
-        Path to the latest report, or None if not found
+        Path to the report, or None if none found
     """
     if not report_dir.exists():
         return None
 
+    # Imported here to keep this module importable without the config package.
+    from src.config import Config
+
+    year, month = Config.get_current_month_info()
+    expected = (
+        report_dir
+        / str(year)
+        / calendar.month_name[month]
+        / f"{calendar.month_name[month]}.json"
+    )
+    if expected.exists():
+        return expected
+
     json_files = list(report_dir.glob("**/*.json"))
     if not json_files:
         return None
-
-    # Return the most recently modified file
     return max(json_files, key=lambda p: p.stat().st_mtime)
 
 
-def extract_stats(report: dict) -> dict | None:
+def load_ytd_context(report_dir: Path, year: str) -> dict:
+    """Year-to-date and all-time figures, written by generate-ytd-report.
+
+    Optional by design: the file is absent until a YTD run has happened, and the
+    stats block just omits those rows rather than failing. Reading it is what
+    keeps the README from having to load the 1.6 GB feed itself.
     """
-    Extract statistics from a report JSON.
+    path = report_dir / str(year) / "ytd_summary.json"
+    if not path.exists():
+        logger.info("No %s yet; omitting year-to-date and all-time rows", path.name)
+        return {}
+
+    payload = _load_report(path)
+    if not payload:
+        return {}
+
+    statistics = payload.get("statistics", {})
+    context = {}
+    if statistics.get("current_ytd_total"):
+        context["ytd_total"] = f"{int(statistics['current_ytd_total']):,}"
+    if statistics.get("all_time_total"):
+        context["all_time_total"] = f"{int(statistics['all_time_total']):,}"
+    if statistics.get("first_year_on_record"):
+        context["first_year"] = str(statistics["first_year_on_record"])
+    return context
+
+
+def extract_stats(report: dict) -> Optional[dict]:
+    """
+    Extract the published statistics from a report JSON.
 
     Args:
         report: Parsed JSON report
 
     Returns:
-        Dictionary with keys: update_date, total_cves, avg_cves_per_day, avg_cvss_score
+        Dictionary of display-ready strings, or None if the shape is unexpected
     """
     try:
-        # Handle nested "data" structure
         data = report.get("data", report)
         summary = data.get("Summary", {})
         cvss_stats = data.get("CVSS Statistics") or data.get("cvss") or {}
 
         total_cves = summary.get("Total CVEs", 0)
-        avg_cvss = cvss_stats.get("mean", 0) if cvss_stats else 0
+        if not total_cves:
+            return None
 
-        # Calculate average CVEs per day using actual days in the report month
+        month_name = summary.get("Month")
+        year = int(summary.get("Year", datetime.now().year))
+
+        # Refuse rather than guess. Falling back to the current month would
+        # label the block with a month the numbers do not belong to, which is
+        # worse than not updating it: an annual report or one written by an
+        # older code path has no Month at all.
+        if not (month_name and isinstance(month_name, str)):
+            logger.error("Report has no Summary.Month; refusing to guess the period")
+            return None
+
+        month_num = list(calendar.month_name).index(month_name)
+
+        # Divide by days elapsed, not days in the month. A manual mid-month run
+        # would otherwise spread a part-month total across the whole month and
+        # understate the daily average, and claim data through a date that has
+        # not happened yet.
         now = datetime.now()
-        report_month = summary.get("Month")
-        report_year = summary.get("Year", now.year)
-        if report_month and isinstance(report_month, str):
-            # Convert month name to number
-            month_num = list(calendar.month_name).index(report_month)
-            days_in_month = calendar.monthrange(int(report_year), month_num)[1]
-        else:
-            days_in_month = calendar.monthrange(now.year, now.month)[1]
-        avg_per_day = total_cves / days_in_month if total_cves else 0
+        in_progress = (year, month_num) == (now.year, now.month)
+        days_elapsed = (
+            now.day if in_progress else calendar.monthrange(year, month_num)[1]
+        )
+
+        avg_per_day = int(total_cves) / days_elapsed if days_elapsed else 0
+        mean_cvss = cvss_stats.get("mean") or 0
+        median_cvss = cvss_stats.get("median") or 0
 
         return {
-            "update_date": datetime.now().strftime("%B %d, %Y"),
-            "total_cves": format(int(total_cves), ","),
-            "avg_cves_per_day": f"{avg_per_day:.2f}",
-            "avg_cvss_score": f"{avg_cvss:.2f}",
+            "month": month_name,
+            "year": str(year),
+            "in_progress": in_progress,
+            "through_date": f"{month_name} {days_elapsed}, {year}",
+            "total_cves": f"{int(total_cves):,}",
+            "avg_cves_per_day": f"{avg_per_day:,.1f}",
+            "mean_cvss": f"{float(mean_cvss):.2f}",
+            "median_cvss": f"{float(median_cvss):.1f}",
         }
-    except (KeyError, ValueError, TypeError):
+    except (KeyError, ValueError, TypeError) as e:
+        logger.error("Unexpected report shape: %s", e)
         return None
 
 
-def update_readme_file(readme_path: Path, stats: dict) -> None:
-    """
-    Update statistics in README.md with actual values.
+def render_stats_block(stats: dict) -> str:
+    """Render the markdown that sits between the markers.
 
-    Uses regex to find and replace existing values in the badge and stats table
-    so the updater works on subsequent runs (not just the first placeholder run).
+    The whole table lives inside the block, header included: an HTML comment
+    between a table header and its rows would break the table.
+    """
+    month_label = f"{stats['month']} {stats['year']}"
+    if stats.get("in_progress"):
+        month_label += " (in progress)"
+
+    rows = [
+        "| Metric | Value |",
+        "|---|---|",
+        f"| CVEs published, {month_label} | {stats['total_cves']} |",
+    ]
+
+    # Year-to-date and all-time need a YTD run behind them, so they are optional.
+    if stats.get("ytd_total"):
+        rows.append(f"| {stats['year']} year to date | {stats['ytd_total']} |")
+    if stats.get("all_time_total"):
+        since = f", since {stats['first_year']}" if stats.get("first_year") else ""
+        rows.append(f"| All time{since} | {stats['all_time_total']} |")
+
+    rows += [
+        f"| Average per day, {stats['month']} | {stats['avg_cves_per_day']} |",
+        f"| Mean CVSS, {stats['month']} | {stats['mean_cvss']} |",
+        f"| Median CVSS, {stats['month']} | {stats['median_cvss']} |",
+        "",
+        f"Data through {stats['through_date']}, excluding rejected CVEs.",
+    ]
+    return "\n".join(rows)
+
+
+def update_readme_file(readme_path: Path, stats: dict) -> bool:
+    """
+    Replace the marked stats block in README.md.
 
     Args:
         readme_path: Path to README.md
-        stats: Dictionary of statistics to insert
+        stats: Statistics from extract_stats()
+
+    Returns:
+        True if the file content changed
+
+    Raises:
+        MarkersNotFound: if either marker is absent or they are out of order
     """
     content = readme_path.read_text()
 
-    content = re.sub(
-        r"(Data%20Updated-)[^)]+(-blue)",
-        rf"\g<1>{stats['update_date']}\2",
-        content,
-    )
-    content = re.sub(
-        r"(Current Statistics \()[^)]+(\))",
-        rf"\g<1>{stats['update_date']}\2",
-        content,
-    )
-    content = re.sub(
-        r"(\*\*Total CVEs\*\* \| )\S+",
-        rf"\g<1>{stats['total_cves']}",
-        content,
-    )
-    content = re.sub(
-        r"(\*\*Average CVEs/Day\*\* \| )\S+",
-        rf"\g<1>{stats['avg_cves_per_day']}",
-        content,
-    )
-    content = re.sub(
-        r"(\*\*Average CVSS Score\*\* \| )\S+",
-        rf"\g<1>{stats['avg_cvss_score']}",
-        content,
-    )
+    start = content.find(START_MARKER)
+    end = content.find(END_MARKER)
+    if start == -1 or end == -1 or end < start:
+        raise MarkersNotFound(
+            f"{readme_path} must contain {START_MARKER} before {END_MARKER}"
+        )
 
-    readme_path.write_text(content)
+    block = render_stats_block(stats)
+    updated = content[: start + len(START_MARKER)] + "\n" + block + "\n" + content[end:]
+
+    if updated == content:
+        return False
+
+    readme_path.write_text(updated)
+    return True

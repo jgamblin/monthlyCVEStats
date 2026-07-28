@@ -134,8 +134,10 @@ jsondata
 *.jsonl
 *.json.zip
 
-# Archive and notebooks
+# Archive and notebooks. The legacy top-level archive/ of notebooks stays
+# ignored; docs/archive/ is tracked superseded documentation.
 archive/
+!docs/archive/
 notebooks/
 legacy_notebooks/
 

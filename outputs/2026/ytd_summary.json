@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-07-27T15:21:23.971406",
+  "year": 2026,
+  "statistics": {
+    "current_month": 7,
+    "current_ytd_total": 43867,
+    "previous_ytd_total": 26928,
+    "yoy_growth": 16939,
+    "yoy_percent": 62.90478312537135,
+    "current_month_count": 8012,
+    "previous_month_count": 3278,
+    "month_growth": 4734,
+    "month_percent": 144.41732763880415,
+    "avg_cves_per_day": 210.89903846153845,
+    "all_time_total": 352762,
+    "first_year_on_record": 1988,
+    "prior_year_totals": {
+      "2021": 20149,
+      "2022": 25074,
+      "2023": 28817,
+      "2024": 39957,
+      "2025": 48162
+    },
+    "previous_year_full_total": 48162,
+    "passed_previous_year_total": false,
+    "cves_to_pass_previous_year": 4295,
+    "days_to_pass_previous_year": 21,
+    "projected_pass_date": "August 17"
+  }
+}

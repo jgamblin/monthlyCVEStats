@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-07-27T14:51:13.818923",
+  "data": {
+    "Summary": {
+      "Month": "July",
+      "Year": 2026,
+      "Total CVEs": 8012
+    },
+    "cvss": {
+      "scored_cves": 6994,
+      "unscored_cves": 1018,
+      "mean": 7.09,
+      "median": 7.4,
+      "std_dev": 1.71,
+      "min": 0.0,
+      "max": 10.0,
+      "percentile_25": 6.1,
+      "percentile_75": 8.2,
+      "severity_counts": {
+        "None": 1,
+        "Low": 303,
+        "Medium": 2517,
+        "High": 3252,
+        "Critical": 921
+      }
+    },
+    "cna": {
+      "top_cnas": {
+        "secalert_us@oracle.com": 1108,
+        "security-advisories@github.com": 1097,
+        "416baaa9-dc9f-4396-8d5f-8c081fb06d67": 812,
+        "secure@microsoft.com": 646,
+        "disclosure@vulncheck.com": 624,
+        "cna@vuldb.com": 433,
+        "audit@patchstack.com": 415,
+        "security@wordfence.com": 381,
+        "cve@mitre.org": 209,
+        "contact@wpscan.com": 137
+      },
+      "total_unique_cnas": 190
+    },
+    "cwe": {
+      "top_cwes": {
+        "CWE-284": 665,
+        "CWE-79": 612,
+        "CWE-862": 335,
+        "CWE-22": 250,
+        "CWE-200": 243,
+        "CWE-306": 214,
+        "CWE-269": 200,
+        "CWE-416": 195,
+        "CWE-89": 188,
+        "CWE-122": 172
+      },
+      "total_unique_cwes": 309
+    },
+    "daily": {
+      "days_with_cves": 27,
+      "calendar_days_covered": 27,
+      "avg_cves_per_day": 296.7,
+      "busiest_day": "2026-07-21",
+      "busiest_day_count": 1474,
+      "quietest_day": "2026-07-26",
+      "quietest_day_count": 15
+    },
+    "monthly_trend": {
+      "monthly_counts": {
+        "2026-01": 4309,
+        "2026-02": 4616,
+        "2026-03": 6234,
+        "2026-04": 5811,
+        "2026-05": 6938,
+        "2026-06": 7947,
+        "2026-07": 8012
+      },
+      "avg_monthly": 5975.8,
+      "busiest_month": "2026-06",
+      "busiest_month_count": 7947,
+      "latest_month": "2026-06",
+      "latest_month_count": 7947,
+      "prior_month_count": 6938,
+      "month_over_month_percent": 14.5,
+      "partial_month": "2026-07",
+      "partial_month_count": 8012,
+      "partial_month_days_elapsed": 27,
+      "partial_month_daily_rate": 296.7,
+      "prior_month_daily_rate": 264.9,
+      "daily_rate_change_percent": 12.0
+    },
+    "growth": {
+      "period": "Monthly",
+      "periods_compared": 6,
+      "avg_growth_percent": 13.9,
+      "fastest_growth_period": "2026-03",
+      "fastest_growth_percent": 35.1,
+      "slowest_growth_period": "2026-04",
+      "slowest_growth_percent": -6.8
+    }
+  }
+}

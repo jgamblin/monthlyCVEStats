@@ -1,13 +1,18 @@
-June saw 7,454 new CVEs — +102.5% over June 2025 and pushing 2026 YTD to 35,365 (+49.5% YoY). That's 195 new vulnerabilities per day.
-Median CVSS: 7.4 (75th percentile: 8.2)
+This year stops being a trend and starts being the new floor.
 
-Top weaknesses:
-  XSS (CWE-79): 617
-  Missing Authorization (CWE-862): 327
-  Use After Free (CWE-416): 320
-  SQL Injection (CWE-89): 283
-  CWE-284 (CWE-284): 269
+July is at 8,012 published CVEs through July 27, which puts 2026 at 43,867 year to date (+62.9% year over year) and 211 new CVEs every day.
 
-Data: NVD (excluding rejected CVEs)
+Median CVSS came in at 7.4, with the 75th percentile at 8.2.
 
-#CVE #VulnerabilityManagement #InfoSec #CyberSecurity
+Most common weaknesses:
+  Improper Access Control (CWE-284): 665
+  XSS (CWE-79): 612
+  Missing Authorization (CWE-862): 335
+  Path Traversal (CWE-22): 250
+  Information Exposure (CWE-200): 243
+
+If this is the new baseline, what gives out first in your triage?
+
+Source: NVD, excluding rejected CVEs
+
+#CVE #VulnerabilityManagement #InfoSec
