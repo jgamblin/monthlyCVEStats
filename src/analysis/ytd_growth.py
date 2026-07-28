@@ -17,6 +17,86 @@ import json
 # Prior full years shown alongside the current year to date.
 PRIOR_YEARS_SHOWN = 5
 
+# Opening claims, keyed by the shape of the year. Every variant is an arguable
+# sentence carrying no statistic, per the house copy formula. Several are kept
+# per situation because the copy is generated: a single line per situation would
+# recur month after month, and "CVE growth has stopped looking like a spike"
+# alone would have opened every post of 2026.
+CLAIM_VARIANTS = {
+    "passed_prior_year": [
+        "Last year's record is no longer a ceiling, it is a midpoint.",
+        "The annual CVE record now falls before most teams finish a roadmap.",
+        "Beating last year's total stopped being news once it happened in summer.",
+    ],
+    "projected_pass": [
+        "This year stops being a trend and starts being the new floor.",
+        "Last year's record already has an expiry date, and it lands this quarter.",
+        "The question is no longer whether the record falls, but by how much.",
+    ],
+    "runaway": [
+        "Growth this steep stops being a trend line and becomes a staffing problem.",
+        "Nobody sized their vulnerability programme for this much volume.",
+        "The intake problem has outgrown the tooling everyone bought to solve it.",
+    ],
+    "strong": [
+        "CVE growth has stopped looking like a spike and started looking like the "
+        "baseline.",
+        "The surge everyone called temporary is now old enough to plan around.",
+        "Treating this as an anomaly is getting harder to justify.",
+    ],
+    "steady": [
+        "Steady growth is the harder problem, because nothing forces a reaction.",
+        "An increase this size never triggers a budget conversation, and that is "
+        "the danger.",
+        "This is the growth rate that quietly breaks a process nobody revisits.",
+    ],
+    "slight": [
+        "A small increase still compounds, and nobody staffs for compounding.",
+        "The pace eased, which is exactly when teams stop paying attention.",
+        "Slow growth is still growth, and the backlog does not reset in January.",
+    ],
+    "slower_month": [
+        "One slower month is not a trend reversal.",
+        "A quiet month says more about publishing schedules than about software.",
+        "Reading a single month as a turning point is how forecasts go wrong.",
+    ],
+    "flat": [
+        "Flat volume is not the same as a solved problem.",
+        "Holding steady after years of growth is its own kind of signal.",
+        "A plateau invites more complacency than a decline does.",
+    ],
+    "declining": [
+        "The CVE curve is finally bending the other way.",
+        "For once the numbers are moving the direction everyone wanted.",
+        "A genuine decline deserves more scrutiny than a rise ever gets.",
+    ],
+}
+
+# Closing questions, rotated on the same mechanism. A formulaic closer kills
+# comments as surely as no closer at all.
+QUESTION_VARIANTS = {
+    "milestone": [
+        "What breaks first when a record year becomes an average one?",
+        "Are you planning next year against this year's numbers, or last year's?",
+        "How far ahead can you plan when the baseline moves every year?",
+    ],
+    "growing": [
+        "If this is the new baseline, what gives out first in your triage?",
+        "What did you stop doing this year in order to keep up?",
+        "Which part of your intake would break first if this pace held?",
+    ],
+    "flat": [
+        "Does flat volume change how you plan for next quarter?",
+        "Is steady better than shrinking, if the work lands the same?",
+        "What would you do differently if this held for two more years?",
+    ],
+    "declining": [
+        "Is this a real plateau, or just a quiet stretch?",
+        "What would convince you a decline is real rather than seasonal?",
+        "Would you re-staff on the strength of one down year?",
+    ],
+}
+
 
 class YTDAnalyzer:
     """Analyze year-to-date CVE growth patterns."""
@@ -31,6 +111,14 @@ class YTDAnalyzer:
         self.data_file = data_file
         self.current_year = datetime.now().year
         self._scan_cache: Optional[dict] = None
+        # Set by the CLI once the output directory is known. Records which copy
+        # variant each situation last used, so a repeat situation next month
+        # picks the next line instead of the same one.
+        self.history_file: Optional[Path] = None
+        # One release is one story: post.txt and enriched_post.txt must open on
+        # the same claim and close on the same question, so the choice is made
+        # once per analyzer and reused rather than rotating between the two.
+        self._copy_choice: Optional[tuple[str, str]] = None
 
     def _scan(self) -> dict:
         """One cached pass over the feed.
@@ -342,50 +430,99 @@ class YTDAnalyzer:
 
         return context
 
-    @staticmethod
-    def _opening_claim(stats: dict, month_complete: bool = True) -> str:
-        """The arguable one-sentence opener, chosen from the shape of the data.
+    def _history(self) -> dict:
+        """Which variant each situation used last time."""
+        if not self.history_file or not self.history_file.exists():
+            return {}
+        try:
+            return json.loads(self.history_file.read_text())
+        except (json.JSONDecodeError, IOError):
+            return {}
 
-        House copy formula: open on a claim rather than a statistic, so the first
-        line is something a reader can agree or disagree with.
+    def _pick(self, pool: dict, key: str, history: dict) -> tuple[str, int]:
+        """The next unused variant for a situation, and its index.
+
+        Advances one step past whatever was used last time, so a situation that
+        persists for months does not repeat its line. Deterministic: no history
+        means the first variant, which keeps generated copy reproducible.
+        """
+        variants = pool[key]
+        previous = history.get(key)
+        index = 0 if previous is None else (int(previous) + 1) % len(variants)
+        return variants[index], index
+
+    @staticmethod
+    def _situation(stats: dict, month_complete: bool = True) -> str:
+        """Which claim bucket this month falls into.
+
+        Banded rather than a single threshold: the old rule fired the same
+        "stopped looking like a spike" branch for anything above 25 percent,
+        which in a year running from 27 to 63 percent meant every single month.
 
         An in-progress month's change is a part-month against a whole one, so it
-        does not get a vote: the claim rests on the year-to-date figure alone.
+        does not get a vote on the framing.
         """
-        yoy = stats["yoy_percent"]
-        month = stats["month_percent"] if month_complete else 0.0
-
-        # Overtaking a prior year's complete total is the strongest arguable line
-        # available, so it outranks any rate-of-growth framing when it happens.
         if stats.get("passed_previous_year_total"):
-            return "Last year's record is no longer a ceiling, it is a midpoint."
+            return "passed_prior_year"
         if stats.get("projected_pass_date"):
-            return "This year stops being a trend and starts being the new floor."
+            return "projected_pass"
 
-        if not month_complete:
-            if yoy >= 25:
-                return (
-                    "CVE growth has stopped looking like a spike and started "
-                    "looking like the baseline."
-                )
-            if yoy > 0:
-                return "Published CVEs are still outrunning last year's pace."
-            if yoy < 0:
-                return "The CVE curve is finally bending the other way."
-            return "CVE publication is holding flat against last year."
+        yoy = stats["yoy_percent"]
+        month = stats["month_percent"] if month_complete else None
 
-        if yoy >= 25 and month > 0:
-            return (
-                "CVE growth has stopped looking like a spike and started looking "
-                "like the baseline."
-            )
-        if yoy > 0 and month <= 0:
-            return "One slower month is not a trend reversal."
-        if yoy > 0:
-            return "Published CVEs are still outrunning last year's pace."
         if yoy < 0:
-            return "The CVE curve is finally bending the other way."
-        return "CVE publication is holding flat against last year."
+            return "declining"
+        if yoy == 0:
+            return "flat"
+        if month is not None and month < 0:
+            return "slower_month"
+        if yoy >= 50:
+            return "runaway"
+        if yoy >= 25:
+            return "strong"
+        if yoy >= 10:
+            return "steady"
+        return "slight"
+
+    @staticmethod
+    def _question_bucket(stats: dict) -> str:
+        """Which closing-question pool fits this month."""
+        if stats.get("passed_previous_year_total") or stats.get("projected_pass_date"):
+            return "milestone"
+        yoy = stats["yoy_percent"]
+        if yoy > 0:
+            return "growing"
+        if yoy < 0:
+            return "declining"
+        return "flat"
+
+    def _choose_copy(self, stats: dict, month_complete: bool) -> tuple[str, str]:
+        """The opening claim and closing question, rotated and recorded."""
+        if self._copy_choice is not None:
+            return self._copy_choice
+
+        history = self._history()
+        claim_key = self._situation(stats, month_complete)
+        question_key = self._question_bucket(stats)
+
+        claim, claim_index = self._pick(CLAIM_VARIANTS, claim_key, history)
+        question, question_index = self._pick(
+            QUESTION_VARIANTS, question_key, history.get("_questions", {})
+        )
+
+        if self.history_file:
+            history[claim_key] = claim_index
+            history.setdefault("_questions", {})[question_key] = question_index
+            try:
+                self.history_file.parent.mkdir(parents=True, exist_ok=True)
+                self.history_file.write_text(
+                    json.dumps(history, indent=2, sort_keys=True)
+                )
+            except IOError:
+                pass  # copy still works, it just will not rotate next month
+
+        self._copy_choice = (claim, question)
+        return self._copy_choice
 
     def _month_is_complete(self, analysis: dict) -> bool:
         """Whether the reporting month has actually finished.
@@ -400,15 +537,6 @@ class YTDAnalyzer:
             analysis["current_year"] == now.year
             and analysis["statistics"]["current_month"] == now.month
         )
-
-    @staticmethod
-    def _closing_question(stats: dict) -> str:
-        """The genuine closing question."""
-        if stats["yoy_percent"] > 0:
-            return "If this is the new baseline, what gives out first in your triage?"
-        if stats["yoy_percent"] < 0:
-            return "Is this a real plateau, or just a quiet stretch?"
-        return "Does flat volume change how you plan for next quarter?"
 
     def get_summary_text(self, analysis: dict) -> str:
         """
@@ -451,13 +579,15 @@ class YTDAnalyzer:
                 f"running."
             )
 
+        claim, question = self._choose_copy(stats, complete)
+
         return (
-            f"{self._opening_claim(stats, complete)}\n\n"
+            f"{claim}\n\n"
             f"{month_line}\n\n"
             f"That puts {year} at {ytd_total} CVEs year to date, {ytd_pct} year over "
             f"year, and {avg_per_day} new CVEs every day."
             f"{self._milestone_line(stats, year, previous_year)}\n\n"
-            f"{self._closing_question(stats)}\n\n"
+            f"{question}\n\n"
             f"Source: NVD, excluding rejected CVEs"
         )
 
@@ -575,7 +705,7 @@ class YTDAnalyzer:
         cwe_lines = ""
         if top_cwes:
             items = list(top_cwes.items())[:5]
-            cwe_lines = "\n\nMost common weaknesses:\n"
+            cwe_lines = "\n\nMost frequently assigned weaknesses:\n"
             for cwe_id, count in items:
                 # Unmapped ids render once, not as "CWE-284 (CWE-284)".
                 name = cwe_names.get(cwe_id)
@@ -597,14 +727,16 @@ class YTDAnalyzer:
                 f"{now.strftime('%B')} {now.day}, which puts"
             )
 
+        claim, question = self._choose_copy(stats, complete)
+
         return (
-            f"{self._opening_claim(stats, complete)}\n\n"
+            f"{claim}\n\n"
             f"{month_clause} "
             f"{year} at {ytd_total} year to date ({ytd_pct} year over year) and "
             f"{avg_day} new CVEs every day."
             f"{cvss_line}"
             f"{cwe_lines}"
-            f"\n\n{self._closing_question(stats)}"
+            f"\n\n{question}"
             f"\n\nSource: NVD, excluding rejected CVEs"
             f"\n\n#CVE #VulnerabilityManagement #InfoSec"
         )

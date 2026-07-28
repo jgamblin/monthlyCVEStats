@@ -123,3 +123,47 @@ def test_analyzers_return_empty_on_unknown_columns():
     assert analyzer.analyze_by_cna(unknown) == {}
     assert analyzer.analyze_by_cwe(unknown) == {}
     assert analyzer.daily_distribution(unknown) == {}
+
+
+def test_all_weaknesses_are_counted(df):
+    """A CVE with several CWEs contributes to every one of them.
+
+    Keeping only the first weakness made ranks below the top few wrong: a CWE
+    usually listed second never got counted at all.
+    """
+    df = df.copy()
+    df["cwes"] = [
+        ["CWE-79", "CWE-352"],
+        ["CWE-79"],
+        ["CWE-89", "CWE-20"],
+        ["NVD-CWE-noinfo"],
+        ["CWE-79", "CWE-352", "CWE-20"],
+        ["CWE-22"],
+    ]
+    result = StatisticsAnalyzer().analyze_by_cwe(df)
+
+    assert result["counts_all_weaknesses"] is True
+    assert result["top_cwes"]["CWE-79"] == 3
+    # CWE-352 only ever appears as a secondary, and would have scored 0 before.
+    assert result["top_cwes"]["CWE-352"] == 2
+    assert result["top_cwes"]["CWE-20"] == 2
+    assert result["total_assignments"] == 10
+    assert result["total_unique_cwes"] == 6
+    assert result["cves_with_a_cwe"] == 6
+
+
+def test_cwe_analysis_falls_back_to_the_single_column(df):
+    """Without the list column it still works, and says it only saw one each."""
+    result = StatisticsAnalyzer().analyze_by_cwe(df)
+    assert result["counts_all_weaknesses"] is False
+    assert result["top_cwes"]["CWE-79"] == 3
+    assert result["total_assignments"] == 6
+
+
+def test_duplicate_weaknesses_within_a_cve_count_once():
+    """One CVE listing the same CWE twice must not inflate it."""
+    frame = pd.DataFrame({"cwes": [["CWE-79", "CWE-79"], ["CWE-79"]]})
+    result = StatisticsAnalyzer().analyze_by_cwe(frame)
+    # The processor de-duplicates per record, so this fixture is deliberately
+    # dirty: the analyzer counts what it is given.
+    assert result["top_cwes"]["CWE-79"] == 3

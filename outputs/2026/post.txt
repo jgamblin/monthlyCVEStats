@@ -1,9 +1,9 @@
-This year stops being a trend and starts being the new floor.
+Last year's record already has an expiry date, and it lands this quarter.
 
 July 2026 is at 8,012 published CVEs through July 27, with the month still running.
 
 That puts 2026 at 43,867 CVEs year to date, +62.9% year over year, and 211 new CVEs every day. All of 2025 came to 48,162, so at the current rate 2026 passes a full 2025 in another 4,295 CVEs, around August 17.
 
-If this is the new baseline, what gives out first in your triage?
+Are you planning next year against this year's numbers, or last year's?
 
 Source: NVD, excluding rejected CVEs

@@ -1,6 +1,6 @@
 # CVE Report - April 2026
 
-Generated 2026-07-27 14:50:17  ·  Source: NVD, excluding rejected CVEs
+Generated 2026-07-27 19:19:14  ·  Source: NVD, excluding rejected CVEs
 
 ## Summary
 
@@ -59,22 +59,25 @@ Generated 2026-07-27 14:50:17  ·  Source: NVD, excluding rejected CVEs
 
 | Metric | Value |
 |---|---|
-| Total unique CWEs | 327 |
+| Total unique CWEs | 361 |
+| Total assignments | 7,171 |
+| CVEs with a CWE | 5,800 |
+| Counts all weaknesses | Yes |
 
-### Most common weaknesses
+### Most frequently assigned weaknesses
 
-| # | CWE | CVEs |
+| # | CWE | Assignments |
 |---|---|---|
-| 1 | CWE-79 | 591 |
-| 2 | CWE-22 | 239 |
-| 3 | CWE-862 | 235 |
-| 4 | CWE-89 | 218 |
-| 5 | CWE-74 | 207 |
-| 6 | CWE-416 | 188 |
-| 7 | CWE-918 | 178 |
-| 8 | CWE-77 | 160 |
-| 9 | CWE-284 | 148 |
-| 10 | CWE-119 | 137 |
+| 1 | CWE-79 | 596 |
+| 2 | CWE-89 | 383 |
+| 3 | CWE-862 | 257 |
+| 4 | CWE-22 | 249 |
+| 5 | CWE-78 | 222 |
+| 6 | CWE-416 | 214 |
+| 7 | CWE-74 | 208 |
+| 8 | CWE-94 | 199 |
+| 9 | CWE-918 | 191 |
+| 10 | CWE-77 | 182 |
 
 ## Daily Publication
 

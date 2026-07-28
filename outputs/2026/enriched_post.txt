@@ -1,17 +1,17 @@
-This year stops being a trend and starts being the new floor.
+Last year's record already has an expiry date, and it lands this quarter.
 
 July is at 8,012 published CVEs through July 27, which puts 2026 at 43,867 year to date (+62.9% year over year) and 211 new CVEs every day.
 
 Median CVSS came in at 7.4, with the 75th percentile at 8.2.
 
-Most common weaknesses:
-  Improper Access Control (CWE-284): 665
-  XSS (CWE-79): 612
-  Missing Authorization (CWE-862): 335
-  Path Traversal (CWE-22): 250
-  Information Exposure (CWE-200): 243
+Most frequently assigned weaknesses:
+  Improper Access Control (CWE-284): 778
+  XSS (CWE-79): 613
+  Missing Authorization (CWE-862): 384
+  Missing Authentication (CWE-306): 328
+  SQL Injection (CWE-89): 292
 
-If this is the new baseline, what gives out first in your triage?
+Are you planning next year against this year's numbers, or last year's?
 
 Source: NVD, excluding rejected CVEs
 

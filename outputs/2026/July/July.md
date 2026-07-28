@@ -1,6 +1,6 @@
 # CVE Report - July 2026
 
-Generated 2026-07-27 14:51:13  ·  Source: NVD, excluding rejected CVEs. July 2026 is still in progress: data through July 27
+Generated 2026-07-27 19:20:12  ·  Source: NVD, excluding rejected CVEs. July 2026 is still in progress: data through July 27
 
 ## Summary
 
@@ -59,22 +59,25 @@ Generated 2026-07-27 14:51:13  ·  Source: NVD, excluding rejected CVEs. July 20
 
 | Metric | Value |
 |---|---|
-| Total unique CWEs | 309 |
+| Total unique CWEs | 331 |
+| Total assignments | 8,431 |
+| CVEs with a CWE | 6,997 |
+| Counts all weaknesses | Yes |
 
-### Most common weaknesses
+### Most frequently assigned weaknesses
 
-| # | CWE | CVEs |
+| # | CWE | Assignments |
 |---|---|---|
-| 1 | CWE-284 | 665 |
-| 2 | CWE-79 | 612 |
-| 3 | CWE-862 | 335 |
-| 4 | CWE-22 | 250 |
-| 5 | CWE-200 | 243 |
-| 6 | CWE-306 | 214 |
-| 7 | CWE-269 | 200 |
-| 8 | CWE-416 | 195 |
-| 9 | CWE-89 | 188 |
-| 10 | CWE-122 | 172 |
+| 1 | CWE-284 | 778 |
+| 2 | CWE-79 | 613 |
+| 3 | CWE-862 | 384 |
+| 4 | CWE-306 | 328 |
+| 5 | CWE-89 | 292 |
+| 6 | CWE-200 | 260 |
+| 7 | CWE-22 | 251 |
+| 8 | CWE-416 | 245 |
+| 9 | CWE-269 | 216 |
+| 10 | CWE-863 | 206 |
 
 ## Daily Publication
 

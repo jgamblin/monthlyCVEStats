@@ -281,6 +281,10 @@ def generate_ytd_report() -> None:
     )
     logger.info(f"✓ YTD summary saved to {summary_json}")
 
+    # Rotate the generated copy against what previous months used, so a run of
+    # similar months does not open with the same sentence every time.
+    ytd_analyzer.history_file = output_dir / "claim_history.json"
+
     # Generate summary text
     logger.info("Generating summary text for social posts...")
     summary_text = ytd_analyzer.get_summary_text(analysis)

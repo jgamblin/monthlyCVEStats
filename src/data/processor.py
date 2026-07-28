@@ -90,19 +90,22 @@ class DataProcessor:
             cve_obj = cve["cve"]
             flat["source_identifier"] = cve_obj.get("sourceIdentifier")
 
-        # Extract weakness info
+        # Extract weakness info. A CVE can carry several weakness entries, and
+        # keeping only the first discarded the rest: ranks below the top three
+        # were wrong, because a CWE that is usually listed second never got
+        # counted. All values are kept, de-duplicated within the record so one
+        # CVE cannot inflate a single CWE, with 'primary_cwe' preserved as the
+        # first for anything still reading a single value.
         if "cve" in cve and "weaknesses" in cve["cve"]:
-            weaknesses = cve["cve"].get("weaknesses", [])
-            if weaknesses:
-                # Get first CWE
-                for weakness in weaknesses:
-                    if "description" in weakness:
-                        for desc in weakness["description"]:
-                            if "value" in desc:
-                                flat["primary_cwe"] = desc["value"]
-                                break
-                        if "primary_cwe" in flat:
-                            break
+            seen = []
+            for weakness in cve["cve"].get("weaknesses", []) or []:
+                for desc in weakness.get("description", []) or []:
+                    value = desc.get("value")
+                    if value and value not in seen:
+                        seen.append(value)
+            if seen:
+                flat["primary_cwe"] = seen[0]
+                flat["cwes"] = seen
 
         return flat
 

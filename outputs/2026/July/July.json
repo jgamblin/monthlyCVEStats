@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-27T14:51:13.818923",
+  "generated_at": "2026-07-27T19:20:12.002554",
   "data": {
     "Summary": {
       "Month": "July",
@@ -41,18 +41,21 @@
     },
     "cwe": {
       "top_cwes": {
-        "CWE-284": 665,
-        "CWE-79": 612,
-        "CWE-862": 335,
-        "CWE-22": 250,
-        "CWE-200": 243,
-        "CWE-306": 214,
-        "CWE-269": 200,
-        "CWE-416": 195,
-        "CWE-89": 188,
-        "CWE-122": 172
+        "CWE-284": 778,
+        "CWE-79": 613,
+        "CWE-862": 384,
+        "CWE-306": 328,
+        "CWE-89": 292,
+        "CWE-200": 260,
+        "CWE-22": 251,
+        "CWE-416": 245,
+        "CWE-269": 216,
+        "CWE-863": 206
       },
-      "total_unique_cwes": 309
+      "total_unique_cwes": 331,
+      "total_assignments": 8431,
+      "cves_with_a_cwe": 6997,
+      "counts_all_weaknesses": true
     },
     "daily": {
       "days_with_cves": 27,
