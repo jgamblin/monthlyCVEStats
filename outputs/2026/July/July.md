@@ -1,6 +1,6 @@
 # CVE Report - July 2026
 
-Generated 2026-07-27 14:51:13  ·  Source: NVD, excluding rejected CVEs. July 2026 is still in progress: data through July 27
+Generated 2026-08-01 10:36:07  ·  Source: NVD, excluding rejected CVEs
 
 ## Summary
 
@@ -8,20 +8,20 @@ Generated 2026-07-27 14:51:13  ·  Source: NVD, excluding rejected CVEs. July 20
 |---|---|
 | Month | July |
 | Year | 2026 |
-| Total CVEs | 8,012 |
+| Total CVEs | 9,775 |
 
 ## CVSS Scores
 
 | Metric | Value |
 |---|---|
-| Scored CVEs | 6,994 |
-| Unscored CVEs | 1,018 |
-| Mean | 7.09 |
-| Median | 7.4 |
-| Std dev | 1.71 |
+| Scored CVEs | 8,636 |
+| Unscored CVEs | 1,139 |
+| Mean | 7.07 |
+| Median | 7.3 |
+| Std dev | 1.74 |
 | Min | 0.0 |
 | Max | 10.0 |
-| Percentile 25 | 6.1 |
+| Percentile 25 | 5.9 |
 | Percentile 75 | 8.2 |
 
 ### Severity distribution
@@ -29,60 +29,60 @@ Generated 2026-07-27 14:51:13  ·  Source: NVD, excluding rejected CVEs. July 20
 | Severity | CVEs |
 |---|---|
 | None | 1 |
-| Low | 303 |
-| Medium | 2,517 |
-| High | 3,252 |
-| Critical | 921 |
+| Low | 365 |
+| Medium | 3,216 |
+| High | 3,855 |
+| Critical | 1,199 |
 
 ## CVE Numbering Authorities
 
 | Metric | Value |
 |---|---|
-| Total unique CNAs | 190 |
+| Total unique CNAs | 208 |
 
 ### Most active CNAs
 
 | # | CNA | CVEs |
 |---|---|---|
-| 1 | secalert_us@oracle.com | 1,108 |
-| 2 | security-advisories@github.com | 1,097 |
-| 3 | 416baaa9-dc9f-4396-8d5f-8c081fb06d67 | 812 |
-| 4 | secure@microsoft.com | 646 |
-| 5 | disclosure@vulncheck.com | 624 |
-| 6 | cna@vuldb.com | 433 |
-| 7 | audit@patchstack.com | 415 |
-| 8 | security@wordfence.com | 381 |
-| 9 | cve@mitre.org | 209 |
-| 10 | contact@wpscan.com | 137 |
+| 1 | security-advisories@github.com | 1,305 |
+| 2 | secalert_us@oracle.com | 1,108 |
+| 3 | 416baaa9-dc9f-4396-8d5f-8c081fb06d67 | 837 |
+| 4 | disclosure@vulncheck.com | 702 |
+| 5 | secure@microsoft.com | 648 |
+| 6 | chrome-cve-admin@google.com | 487 |
+| 7 | audit@patchstack.com | 481 |
+| 8 | security@wordfence.com | 454 |
+| 9 | cna@vuldb.com | 440 |
+| 10 | cve@mitre.org | 266 |
 
 ## Weakness Types
 
 | Metric | Value |
 |---|---|
-| Total unique CWEs | 309 |
+| Total unique CWEs | 338 |
 
 ### Most common weaknesses
 
 | # | CWE | CVEs |
 |---|---|---|
-| 1 | CWE-284 | 665 |
-| 2 | CWE-79 | 612 |
-| 3 | CWE-862 | 335 |
-| 4 | CWE-22 | 250 |
-| 5 | CWE-200 | 243 |
-| 6 | CWE-306 | 214 |
-| 7 | CWE-269 | 200 |
-| 8 | CWE-416 | 195 |
-| 9 | CWE-89 | 188 |
-| 10 | CWE-122 | 172 |
+| 1 | CWE-284 | 753 |
+| 2 | CWE-79 | 741 |
+| 3 | CWE-862 | 399 |
+| 4 | CWE-200 | 323 |
+| 5 | CWE-22 | 313 |
+| 6 | CWE-89 | 282 |
+| 7 | CWE-416 | 280 |
+| 8 | CWE-306 | 267 |
+| 9 | CWE-20 | 266 |
+| 10 | CWE-269 | 228 |
 
 ## Daily Publication
 
 | Metric | Value |
 |---|---|
-| Days with CVEs | 27 |
-| Calendar days covered | 27 |
-| Avg CVEs per day | 296.7 |
+| Days with CVEs | 31 |
+| Calendar days covered | 31 |
+| Avg CVEs per day | 315.3 |
 | Busiest day | 2026-07-21 |
 | Busiest day count | 1,474 |
 | Quietest day | 2026-07-26 |
@@ -92,39 +92,33 @@ Generated 2026-07-27 14:51:13  ·  Source: NVD, excluding rejected CVEs. July 20
 
 | Metric | Value |
 |---|---|
-| Avg monthly | 5,975.8 |
-| Busiest month | 2026-06 |
-| Busiest month count | 7,947 |
-| Latest month | 2026-06 |
-| Latest month count | 7,947 |
-| Prior month count | 6,938 |
-| Month over month percent | 14.5 |
-| Partial month | 2026-07 |
-| Partial month count | 8,012 |
-| Partial month days elapsed | 27 |
-| Partial month daily rate | 296.7 |
-| Prior month daily rate | 264.9 |
-| Daily rate change percent | 12 |
+| Avg monthly | 6,518 |
+| Busiest month | 2026-07 |
+| Busiest month count | 9,775 |
+| Latest month | 2026-07 |
+| Latest month count | 9,775 |
+| Prior month count | 7,946 |
+| Month over month percent | 23 |
 
 ### CVEs by month
 
 | Month | CVEs |
 |---|---|
-| 2026-01 | 4,309 |
+| 2026-01 | 4,305 |
 | 2026-02 | 4,616 |
 | 2026-03 | 6,234 |
-| 2026-04 | 5,811 |
-| 2026-05 | 6,938 |
-| 2026-06 | 7,947 |
-| 2026-07 | 8,012 |
+| 2026-04 | 5,810 |
+| 2026-05 | 6,940 |
+| 2026-06 | 7,946 |
+| 2026-07 | 9,775 |
 
 ## Growth Rate
 
 | Metric | Value |
 |---|---|
 | Period | Monthly |
-| Periods compared | 6 |
-| Avg growth percent | 13.9 |
+| Periods compared | 7 |
+| Avg growth percent | 15.4 |
 | Fastest growth period | 2026-03 |
 | Fastest growth percent | 35.1 |
 | Slowest growth period | 2026-04 |

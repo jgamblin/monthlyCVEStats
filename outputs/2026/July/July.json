@@ -1,63 +1,63 @@
 {
-  "generated_at": "2026-07-27T14:51:13.818923",
+  "generated_at": "2026-08-01T10:36:07.993902",
   "data": {
     "Summary": {
       "Month": "July",
       "Year": 2026,
-      "Total CVEs": 8012
+      "Total CVEs": 9775
     },
     "cvss": {
-      "scored_cves": 6994,
-      "unscored_cves": 1018,
-      "mean": 7.09,
-      "median": 7.4,
-      "std_dev": 1.71,
+      "scored_cves": 8636,
+      "unscored_cves": 1139,
+      "mean": 7.07,
+      "median": 7.3,
+      "std_dev": 1.74,
       "min": 0.0,
       "max": 10.0,
-      "percentile_25": 6.1,
+      "percentile_25": 5.9,
       "percentile_75": 8.2,
       "severity_counts": {
         "None": 1,
-        "Low": 303,
-        "Medium": 2517,
-        "High": 3252,
-        "Critical": 921
+        "Low": 365,
+        "Medium": 3216,
+        "High": 3855,
+        "Critical": 1199
       }
     },
     "cna": {
       "top_cnas": {
+        "security-advisories@github.com": 1305,
         "secalert_us@oracle.com": 1108,
-        "security-advisories@github.com": 1097,
-        "416baaa9-dc9f-4396-8d5f-8c081fb06d67": 812,
-        "secure@microsoft.com": 646,
-        "disclosure@vulncheck.com": 624,
-        "cna@vuldb.com": 433,
-        "audit@patchstack.com": 415,
-        "security@wordfence.com": 381,
-        "cve@mitre.org": 209,
-        "contact@wpscan.com": 137
+        "416baaa9-dc9f-4396-8d5f-8c081fb06d67": 837,
+        "disclosure@vulncheck.com": 702,
+        "secure@microsoft.com": 648,
+        "chrome-cve-admin@google.com": 487,
+        "audit@patchstack.com": 481,
+        "security@wordfence.com": 454,
+        "cna@vuldb.com": 440,
+        "cve@mitre.org": 266
       },
-      "total_unique_cnas": 190
+      "total_unique_cnas": 208
     },
     "cwe": {
       "top_cwes": {
-        "CWE-284": 665,
-        "CWE-79": 612,
-        "CWE-862": 335,
-        "CWE-22": 250,
-        "CWE-200": 243,
-        "CWE-306": 214,
-        "CWE-269": 200,
-        "CWE-416": 195,
-        "CWE-89": 188,
-        "CWE-122": 172
+        "CWE-284": 753,
+        "CWE-79": 741,
+        "CWE-862": 399,
+        "CWE-200": 323,
+        "CWE-22": 313,
+        "CWE-89": 282,
+        "CWE-416": 280,
+        "CWE-306": 267,
+        "CWE-20": 266,
+        "CWE-269": 228
       },
-      "total_unique_cwes": 309
+      "total_unique_cwes": 338
     },
     "daily": {
-      "days_with_cves": 27,
-      "calendar_days_covered": 27,
-      "avg_cves_per_day": 296.7,
+      "days_with_cves": 31,
+      "calendar_days_covered": 31,
+      "avg_cves_per_day": 315.3,
       "busiest_day": "2026-07-21",
       "busiest_day_count": 1474,
       "quietest_day": "2026-07-26",
@@ -65,32 +65,26 @@
     },
     "monthly_trend": {
       "monthly_counts": {
-        "2026-01": 4309,
+        "2026-01": 4305,
         "2026-02": 4616,
         "2026-03": 6234,
-        "2026-04": 5811,
-        "2026-05": 6938,
-        "2026-06": 7947,
-        "2026-07": 8012
+        "2026-04": 5810,
+        "2026-05": 6940,
+        "2026-06": 7946,
+        "2026-07": 9775
       },
-      "avg_monthly": 5975.8,
-      "busiest_month": "2026-06",
-      "busiest_month_count": 7947,
-      "latest_month": "2026-06",
-      "latest_month_count": 7947,
-      "prior_month_count": 6938,
-      "month_over_month_percent": 14.5,
-      "partial_month": "2026-07",
-      "partial_month_count": 8012,
-      "partial_month_days_elapsed": 27,
-      "partial_month_daily_rate": 296.7,
-      "prior_month_daily_rate": 264.9,
-      "daily_rate_change_percent": 12.0
+      "avg_monthly": 6518.0,
+      "busiest_month": "2026-07",
+      "busiest_month_count": 9775,
+      "latest_month": "2026-07",
+      "latest_month_count": 9775,
+      "prior_month_count": 7946,
+      "month_over_month_percent": 23.0
     },
     "growth": {
       "period": "Monthly",
-      "periods_compared": 6,
-      "avg_growth_percent": 13.9,
+      "periods_compared": 7,
+      "avg_growth_percent": 15.4,
       "fastest_growth_period": "2026-03",
       "fastest_growth_percent": 35.1,
       "slowest_growth_period": "2026-04",
