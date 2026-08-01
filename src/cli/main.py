@@ -1,5 +1,6 @@
 """Main CLI entry point for CVE statistics."""
 
+import calendar
 import json
 import sys
 from datetime import datetime
@@ -21,6 +22,7 @@ from src.analysis.statistics import StatisticsAnalyzer
 from src.analysis.trends import TrendAnalyzer
 from src.analysis.ytd_growth import YTDAnalyzer
 from src.reports.generator import ReportGenerator
+from src.reports import alt_text
 from src.reports.ytd_visualizer import YTDVisualizer
 
 app = typer.Typer(
@@ -256,6 +258,33 @@ def generate_ytd_report() -> None:
                 **chart_kwargs,
             )
 
+    # Alt text, written from the same figures the charts are drawn from so the
+    # description cannot drift from the picture.
+    end_year, end_day, _ = visualizer._period_end(through_month)
+    through_date = f"{calendar.month_name[through_month]} {end_day}, {end_year}"
+    stats = analysis["statistics"]
+    growth_alt = alt_text.growth_chart(
+        analysis["current_year"],
+        through_date,
+        through_month,
+        stats,
+        analysis["current_cumulative"],
+        analysis["previous_cumulative"],
+        extremes=visualizer._month_extremes(
+            analysis["current_year_data"],
+            analysis["previous_year_data"],
+            through_month,
+        ),
+    )
+    yoy_alt = alt_text.yoy_chart(
+        analysis["current_year"],
+        analysis["previous_year"],
+        stats["current_ytd_total"],
+        stats["previous_ytd_total"],
+        stats["yoy_percent"],
+        f"January 1 to {through_date}",
+    )
+
     visualizer.create_yoy_comparison(
         analysis["current_year"],
         analysis["previous_year"],
@@ -264,6 +293,17 @@ def generate_ytd_report() -> None:
         analysis["statistics"]["yoy_percent"],
         through_month=through_month,
     )
+
+    alt_file = output_dir / "alt_text.md"
+    alt_file.write_text(
+        alt_text.render_file(
+            growth_alt,
+            alt_text.growth_chart_short(analysis["current_year"], through_month, stats),
+            yoy_alt,
+            [p.name for p in sorted(output_dir.glob("*.png"))],
+        )
+    )
+    logger.info(f"✓ Alt text saved to {alt_file}")
 
     # Persist the statistics so update-readme-stats can carry the year-to-date
     # and all-time figures without loading the 1.6 GB feed a second time.

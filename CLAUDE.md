@@ -57,6 +57,7 @@ mypy src/ --ignore-missing-imports
 - **`src/analysis/trends.py`** — Month-over-month and year-over-year growth rates
 - **`src/analysis/ytd_growth.py`** — Year-to-date cumulative analysis, prior-full-year milestone, all-time totals, generates social post copy
 - **`src/reports/generator.py`** — Outputs Markdown, JSON, CSV reports
+- **`src/reports/alt_text.py`** — Chart alt text, generated from the same figures the charts use
 - **`src/reports/style.py`** — Chart house style: palette, bundled fonts, header, stat cards, date stamp
 - **`src/reports/ytd_visualizer.py`** — Matplotlib charts (dark/light themes, wide/square/portrait ratios)
 - **`src/utils/readme_updater.py`** — Regenerates the stats block in README.md

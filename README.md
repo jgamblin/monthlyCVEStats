@@ -94,6 +94,7 @@ outputs/2026/
   post.txt                              # the social post, also the release body
   enriched_post.txt                     # longer version with CVSS and CWE detail
   ytd_summary.json                      # YTD + all-time figures for the README block
+  alt_text.md                           # alt text for every chart, ready to paste
 ```
 
 Each report covers CVSS scores and severity bands, the most active CNAs, the most
