@@ -315,7 +315,6 @@ class YTDVisualizer:
         last_previous = previous_values[-1]
         diff = last_current - last_previous
         diff_pct = (diff / last_previous * 100) if last_previous > 0 else 0
-        mid_y = (last_current + last_previous) / 2
         # Sit the label in the lower part of the gap. Centred, it lands on the
         # highlighted current-year line, so the callout about that series was
         # hiding the series.

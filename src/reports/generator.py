@@ -23,7 +23,7 @@ SECTION_TITLES = {
 # Nested tables: key -> (heading, name column header, value column header, ranked)
 NESTED_TABLES = {
     "top_cnas": ("Most active CNAs", "CNA", "CVEs", True),
-    "top_cwes": ("Most common weaknesses", "CWE", "CVEs", True),
+    "top_cwes": ("Most frequently assigned weaknesses", "CWE", "Assignments", True),
     "severity_counts": ("Severity distribution", "Severity", "CVEs", False),
     "monthly_counts": ("CVEs by month", "Month", "CVEs", False),
     "yearly_counts": ("CVEs by year", "Year", "CVEs", False),

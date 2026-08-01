@@ -139,8 +139,8 @@ def test_markdown_renders_ranked_nested_tables(tmp_path):
     )
     content = path.read_text()
 
-    assert "### Most common weaknesses" in content
-    assert "| # | CWE | CVEs |" in content
+    assert "### Most frequently assigned weaknesses" in content
+    assert "| # | CWE | Assignments |" in content
     assert "| 1 | CWE-79 | 571 |" in content
     assert "| 2 | CWE-89 | 280 |" in content
     # Unranked tables get no rank column.

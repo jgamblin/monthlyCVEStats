@@ -9,7 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from src.analysis.ytd_growth import YTDAnalyzer
+from src.analysis.ytd_growth import (
+    CLAIM_VARIANTS,
+    QUESTION_VARIANTS,
+    YTDAnalyzer,
+)
 
 BANNED_CHARACTERS = ["—", "–", "►", "▶", "✅", "🔥"]
 
@@ -108,15 +112,19 @@ def test_names_the_source(fixture_name, request):
     assert "NVD" in text
 
 
-def test_claim_varies_with_the_data(analyzer):
-    """A declining year must not be described with the growth claim."""
-    growing = analyzer.get_summary_text(analysis(yoy_percent=39.9, month_percent=74.7))
-    declining = analyzer.get_summary_text(
-        analysis(yoy_percent=-8.0, month_percent=-12.0)
-    )
-    slower_month = analyzer.get_summary_text(
-        analysis(yoy_percent=12.0, month_percent=-4.0)
-    )
+def test_claim_varies_with_the_data():
+    """A declining year must not be described with the growth claim.
+
+    A fresh analyzer per shape, because one analyzer is deliberately one
+    release: it locks its claim so both post files agree.
+    """
+
+    def claim_for(**kwargs):
+        return YTDAnalyzer(Path("data/nvd.jsonl")).get_summary_text(analysis(**kwargs))
+
+    growing = claim_for(yoy_percent=39.9, month_percent=74.7)
+    declining = claim_for(yoy_percent=-8.0, month_percent=-12.0)
+    slower_month = claim_for(yoy_percent=12.0, month_percent=-4.0)
 
     claims = {
         growing.splitlines()[0],
@@ -195,8 +203,10 @@ def test_in_progress_claim_ignores_the_part_month(analyzer, monkeypatch):
     payload["statistics"]["current_month"] = 7
     claim = analyzer.get_summary_text(payload).splitlines()[0]
 
-    assert "not a trend reversal" not in claim
-    assert "baseline" in claim
+    # The part-month dip is ignored, so this reads as the strong-growth year it
+    # is rather than a slowdown.
+    assert claim not in CLAIM_VARIANTS["slower_month"]
+    assert claim in CLAIM_VARIANTS["runaway"]
 
 
 def test_unmapped_cwe_renders_its_id_once(analyzer):
@@ -365,3 +375,139 @@ def test_no_milestone_line_without_a_prior_year(analyzer):
     text = analyzer.get_summary_text(payload)
     assert "whole of" not in text
     assert "came to" not in text
+
+
+def situation(analyzer, **kwargs):
+    payload = analysis(**{k: v for k, v in kwargs.items() if k != "month_complete"})
+    return analyzer._situation(
+        payload["statistics"], kwargs.get("month_complete", True)
+    )
+
+
+def test_growth_is_banded_not_one_threshold(analyzer):
+    """The old rule fired one branch for anything above 25 percent.
+
+    Across 2026 that ran from 27 to 63 percent, so every month of the year got
+    the identical opening sentence.
+    """
+    assert situation(analyzer, yoy_percent=63.0) == "runaway"
+    assert situation(analyzer, yoy_percent=39.9) == "strong"
+    assert situation(analyzer, yoy_percent=27.0) == "strong"
+    assert situation(analyzer, yoy_percent=18.0) == "steady"
+    assert situation(analyzer, yoy_percent=4.0) == "slight"
+    assert situation(analyzer, yoy_percent=0.0) == "flat"
+    assert situation(analyzer, yoy_percent=-8.0) == "declining"
+
+    # 27 and 63 percent no longer collapse to the same line.
+    assert CLAIM_VARIANTS["strong"][0] != CLAIM_VARIANTS["runaway"][0]
+
+
+def test_a_slower_month_outranks_the_growth_band(analyzer):
+    assert situation(analyzer, yoy_percent=39.9, month_percent=-4.0) == "slower_month"
+
+
+def test_repeated_situations_rotate_the_claim(tmp_path):
+    """A run of similar months must not open with the same sentence each time."""
+    history = tmp_path / "claim_history.json"
+    seen = []
+    for _ in range(4):
+        analyzer = YTDAnalyzer(Path("data/nvd.jsonl"))
+        analyzer.history_file = history
+        seen.append(analyzer.get_summary_text(analysis()).splitlines()[0])
+
+    variants = CLAIM_VARIANTS["strong"]
+    # Three distinct lines before it has to reuse one, then it cycles.
+    assert seen[:3] == variants
+    assert seen[3] == variants[0]
+    assert len(set(seen[:3])) == 3
+
+
+def test_questions_rotate_independently(tmp_path):
+    history = tmp_path / "claim_history.json"
+    asked = []
+    for _ in range(3):
+        analyzer = YTDAnalyzer(Path("data/nvd.jsonl"))
+        analyzer.history_file = history
+        text = analyzer.get_summary_text(analysis())
+        asked.append([line for line in text.splitlines() if line.endswith("?")][0])
+
+    assert asked == QUESTION_VARIANTS["growing"]
+
+
+def test_rotation_is_per_situation(tmp_path):
+    """Advancing one situation must not burn through another's variants."""
+    history = tmp_path / "claim_history.json"
+
+    first = YTDAnalyzer(Path("data/nvd.jsonl"))
+    first.history_file = history
+    first.get_summary_text(analysis(yoy_percent=39.9))  # strong
+
+    second = YTDAnalyzer(Path("data/nvd.jsonl"))
+    second.history_file = history
+    declining = second.get_summary_text(analysis(yoy_percent=-8.0, month_percent=-3.0))
+
+    # 'declining' has not been used yet, so it starts at its first variant.
+    assert declining.splitlines()[0] == CLAIM_VARIANTS["declining"][0]
+
+
+def test_without_history_copy_is_deterministic():
+    """No history file means reproducible output, which keeps tests stable."""
+    a = YTDAnalyzer(Path("data/nvd.jsonl"))
+    b = YTDAnalyzer(Path("data/nvd.jsonl"))
+    assert a.get_summary_text(analysis()) == b.get_summary_text(analysis())
+
+
+def test_every_claim_variant_is_house_clean():
+    """The formula applies to all of them, not just the ones a test happens to hit."""
+    for bucket, variants in CLAIM_VARIANTS.items():
+        assert len(variants) >= 3, f"{bucket} needs alternatives to rotate through"
+        for claim in variants:
+            assert not any(c.isdigit() for c in claim), f"{claim!r} carries a statistic"
+            assert claim.endswith("."), f"{claim!r} should be a sentence"
+            for character in BANNED_CHARACTERS:
+                assert character not in claim
+            assert len(claim) < 100, f"{claim!r} is too long for an opening line"
+
+
+def test_every_question_variant_is_a_question():
+    for bucket, variants in QUESTION_VARIANTS.items():
+        assert len(variants) >= 3, f"{bucket} needs alternatives to rotate through"
+        for question in variants:
+            assert question.endswith("?")
+            for character in BANNED_CHARACTERS:
+                assert character not in question
+
+
+def test_both_posts_in_one_release_share_the_claim(tmp_path):
+    """post.txt and enriched_post.txt are one story, so one claim and question.
+
+    Rotation happens between releases, not between the two files of a release.
+    """
+    analyzer = YTDAnalyzer(Path("data/nvd.jsonl"))
+    analyzer.history_file = tmp_path / "claim_history.json"
+
+    payload = analysis()
+    summary = analyzer.get_summary_text(payload)
+    enriched = analyzer.get_enriched_text(payload, MONTHLY_REPORT)
+
+    assert summary.splitlines()[0] == enriched.splitlines()[0]
+    summary_q = [line for line in summary.splitlines() if line.endswith("?")][0]
+    enriched_q = [line for line in enriched.splitlines() if line.endswith("?")][0]
+    assert summary_q == enriched_q
+
+
+def test_one_release_advances_the_history_once(tmp_path):
+    """Two files written from one analyzer must not burn two variants."""
+    history = tmp_path / "claim_history.json"
+    analyzer = YTDAnalyzer(Path("data/nvd.jsonl"))
+    analyzer.history_file = history
+
+    payload = analysis()
+    analyzer.get_summary_text(payload)
+    analyzer.get_enriched_text(payload, MONTHLY_REPORT)
+
+    import json as _json
+
+    recorded = _json.loads(history.read_text())
+    assert recorded["strong"] == 0
+    assert recorded["_questions"]["growing"] == 0

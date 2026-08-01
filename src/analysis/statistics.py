@@ -105,6 +105,11 @@ class StatisticsAnalyzer:
     def analyze_by_cwe(self, df: pd.DataFrame, top_n: int = 10) -> dict:
         """Analyze CVEs by Common Weakness Enumeration (CWE).
 
+        Counts every weakness assigned to a CVE, not just the first. A CVE with
+        three CWEs contributes to all three, so the totals are assignments rather
+        than CVEs and the two are reported separately. Falls back to the single
+        'primary_cwe' column when the full list is not present.
+
         Args:
             df: CVE DataFrame
             top_n: Number of top CWEs to return
@@ -112,20 +117,29 @@ class StatisticsAnalyzer:
         Returns:
             Dictionary of CWE statistics
         """
-        cwe_col = find_column(df, CWE_COLUMNS)
-        if cwe_col is None:
-            self.logger.warning(
-                "No CWE column found (looked for %s)", ", ".join(CWE_COLUMNS)
-            )
-            return {}
+        if "cwes" in df.columns:
+            exploded = df["cwes"].explode().dropna()
+            counted_all = True
+        else:
+            cwe_col = find_column(df, CWE_COLUMNS)
+            if cwe_col is None:
+                self.logger.warning(
+                    "No CWE column found (looked for %s)", ", ".join(CWE_COLUMNS)
+                )
+                return {}
+            exploded = df[cwe_col].dropna()
+            counted_all = False
 
-        cwe_counts = df[cwe_col].value_counts()
+        cwe_counts = exploded.value_counts()
         if cwe_counts.empty:
             return {}
 
         return {
             "top_cwes": cwe_counts.head(top_n).to_dict(),
-            "total_unique_cwes": int(df[cwe_col].nunique()),
+            "total_unique_cwes": int(exploded.nunique()),
+            "total_assignments": int(len(exploded)),
+            "cves_with_a_cwe": int(exploded.index.nunique()),
+            "counts_all_weaknesses": counted_all,
         }
 
     def daily_distribution(self, df: pd.DataFrame) -> dict:
