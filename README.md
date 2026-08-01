@@ -15,7 +15,7 @@ ready to paste. It shares its chart styling with
 |---|---|
 | CVEs published, July 2026 | 9,775 |
 | 2026 year to date | 45,626 |
-| All time, since 1988 | 354,527 |
+| All time, since 1988 | 354,521 |
 | Average per day, July | 315.3 |
 | Mean CVSS, July | 7.07 |
 | Median CVSS, July | 7.3 |

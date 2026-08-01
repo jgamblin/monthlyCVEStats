@@ -1,6 +1,6 @@
 # CVE Report - July 2026
 
-Generated 2026-08-01 10:36:07  ·  Source: NVD, excluding rejected CVEs
+Generated 2026-08-01 12:30:36  ·  Source: NVD, excluding rejected CVEs
 
 ## Summary
 
@@ -10,12 +10,13 @@ Generated 2026-08-01 10:36:07  ·  Source: NVD, excluding rejected CVEs
 | Year | 2026 |
 | Total CVEs | 9,775 |
 
-## CVSS Scores
+## CVSS v3.x Scores
 
 | Metric | Value |
 |---|---|
-| Scored CVEs | 8,636 |
-| Unscored CVEs | 1,139 |
+| Scored on CVSS v3.x | 8,636 |
+| Scored on CVSS v4.0 only | 760 |
+| No CVSS score of any version | 379 |
 | Mean | 7.07 |
 | Median | 7.3 |
 | Std dev | 1.74 |
@@ -23,6 +24,7 @@ Generated 2026-08-01 10:36:07  ·  Source: NVD, excluding rejected CVEs
 | Max | 10.0 |
 | Percentile 25 | 5.9 |
 | Percentile 75 | 8.2 |
+| Scored share, any version (%) | 96.1 |
 
 ### Severity distribution
 
@@ -59,22 +61,26 @@ Generated 2026-08-01 10:36:07  ·  Source: NVD, excluding rejected CVEs
 
 | Metric | Value |
 |---|---|
-| Total unique CWEs | 338 |
+| Total unique CWEs | 357 |
+| Total assignments | 10,495 |
+| CVEs with a CWE | 8,874 |
+| Counts all weaknesses | Yes |
+| Unmapped records | 96 |
 
-### Most common weaknesses
+### Most frequently assigned weaknesses
 
-| # | CWE | CVEs |
+| # | CWE | Assignments |
 |---|---|---|
-| 1 | CWE-284 | 753 |
-| 2 | CWE-79 | 741 |
-| 3 | CWE-862 | 399 |
-| 4 | CWE-200 | 323 |
-| 5 | CWE-22 | 313 |
-| 6 | CWE-89 | 282 |
-| 7 | CWE-416 | 280 |
-| 8 | CWE-306 | 267 |
-| 9 | CWE-20 | 266 |
-| 10 | CWE-269 | 228 |
+| 1 | CWE-284 | 901 |
+| 2 | CWE-79 | 749 |
+| 3 | CWE-862 | 453 |
+| 4 | CWE-306 | 388 |
+| 5 | CWE-89 | 386 |
+| 6 | CWE-200 | 347 |
+| 7 | CWE-416 | 332 |
+| 8 | CWE-22 | 314 |
+| 9 | CWE-20 | 268 |
+| 10 | CWE-269 | 248 |
 
 ## Daily Publication
 
@@ -87,6 +93,8 @@ Generated 2026-08-01 10:36:07  ·  Source: NVD, excluding rejected CVEs
 | Busiest day count | 1,474 |
 | Quietest day | 2026-07-26 |
 | Quietest day count | 15 |
+| Busiest day top source | secalert_us@oracle.com |
+| Busiest day top source count | 1,097 |
 
 ## Monthly Trend
 
@@ -117,7 +125,8 @@ Generated 2026-08-01 10:36:07  ·  Source: NVD, excluding rejected CVEs
 | Metric | Value |
 |---|---|
 | Period | Monthly |
-| Periods compared | 7 |
+| Months included | 7 |
+| Changes averaged | 6 |
 | Avg growth percent | 15.4 |
 | Fastest growth period | 2026-03 |
 | Fastest growth percent | 35.1 |

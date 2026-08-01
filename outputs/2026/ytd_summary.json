@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T10:36:50.317835",
+  "generated_at": "2026-08-01T12:30:49.158289",
   "year": 2026,
   "statistics": {
     "current_month": 7,
@@ -12,7 +12,7 @@
     "month_growth": 5999,
     "month_percent": 158.87182203389833,
     "avg_cves_per_day": 215.21698113207546,
-    "all_time_total": 354527,
+    "all_time_total": 354521,
     "first_year_on_record": 1988,
     "prior_year_totals": {
       "2021": 20149,
@@ -24,7 +24,9 @@
     "previous_year_full_total": 48162,
     "passed_previous_year_total": false,
     "cves_to_pass_previous_year": 2536,
-    "days_to_pass_previous_year": 12,
-    "projected_pass_date": "August 13"
+    "projected_pass_date": "August 12",
+    "projected_pass_date_at_month_rate": "August 9",
+    "month_daily_rate": 315.3,
+    "days_to_pass_previous_year": 12
   }
 }

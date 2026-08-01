@@ -123,18 +123,18 @@ def test_yoy_comparison_renders(tmp_path):
 
 def test_month_extremes_summary(tmp_path, chart_args):
     visualizer = YTDVisualizer(tmp_path)
-    summary = visualizer._month_extremes(
+    parts = visualizer._month_extremes(
         chart_args["monthly_data"], chart_args["previous_monthly_data"], 5
     )
-    assert "Busiest completed month: May (6,952)" in summary
-    assert "Quietest completed month: Jan (5,000)" in summary
-    assert "Fastest YoY month: May, +74.7% vs May last year" in summary
+    assert parts[0] == "Busiest completed month: May (6,952)"
+    assert parts[1] == "Quietest: Jan (5,000)"
+    assert parts[2] == "Fastest YoY: May +74.7% on last year"
 
 
 def test_month_extremes_handles_no_data(tmp_path):
     visualizer = YTDVisualizer(tmp_path)
-    assert visualizer._month_extremes({}, {}, 5) == ""
-    assert visualizer._month_extremes({1: 0, 2: 0}, {}, 2) == ""
+    assert visualizer._month_extremes({}, {}, 5) == []
+    assert visualizer._month_extremes({1: 0, 2: 0}, {}, 2) == []
 
 
 def _freeze(monkeypatch, year, month, day):
@@ -187,9 +187,9 @@ def test_incomplete_month_is_not_ranked_busiest(tmp_path, monkeypatch, chart_arg
     assert path.exists()
 
     # The ranking the chart footer is built from stops at the last whole month.
-    summary = visualizer._month_extremes(monthly, previous, 6)
-    assert "Busiest completed month: Jun (7,947)" in summary
-    assert "Jul" not in summary
+    parts = visualizer._month_extremes(monthly, previous, 6)
+    assert parts[0] == "Busiest completed month: Jun (7,947)"
+    assert not any("Jul" in part for part in parts)
 
 
 def _relative_luminance(hex_color):

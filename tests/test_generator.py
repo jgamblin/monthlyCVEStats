@@ -53,7 +53,7 @@ def test_markdown_renders_tables(tmp_path):
     assert content.startswith("# CVE Report - May 2026")
     assert "Source: NVD, excluding rejected CVEs" in content
     # Human headings, not raw analysis keys.
-    assert "## CVSS Scores" in content
+    assert "## CVSS v3.x Scores" in content
     assert "## cvss" not in content
     # Tables, not bulleted key-value dumps.
     assert "| Metric | Value |" in content

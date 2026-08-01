@@ -32,7 +32,8 @@ def test_monthly_trend_uses_published_column(year_df):
 def test_growth_rate_across_months(year_df):
     result = TrendAnalyzer().growth_rate(year_df)
     assert result, "Growth rate must not be empty for a multi-month frame"
-    assert result["periods_compared"] == 3
+    assert result["months_included"] == 3
+    assert result["changes_averaged"] == 2
     assert result["fastest_growth_period"] == "2026-02"  # 2 -> 4 is +100%
     assert result["fastest_growth_percent"] == 100.0
     assert result["slowest_growth_percent"] == -25.0
@@ -114,7 +115,8 @@ def test_growth_rate_excludes_the_partial_month(year_with_partial_july):
     result = TrendAnalyzer().growth_rate(
         year_with_partial_july, partial_period="2026-07"
     )
-    assert result["periods_compared"] == 6  # Jan-Jun, not 7
+    assert result["months_included"] == 6  # Jan-Jun, not 7
+    assert result["changes_averaged"] == 5  # six months yield five changes
     assert "2026-07" not in result["fastest_growth_period"]
 
 

@@ -1,17 +1,17 @@
-This year stops being a trend and starts being the new floor.
+This is not a spike year, it is the floor the next one starts from.
 
-July closed at 9,775 published CVEs, +158.9% against July 2025, which puts 2026 at 45,626 year to date (+66.4% year over year) and 215 new CVEs every day.
+July closed at 9,775 published CVEs, +158.9% against July 2025, which puts 2026 at 45,626 year to date (+66.4% year over year) and 215 CVEs published a day so far this year.
 
 Median CVSS came in at 7.3, with the 75th percentile at 8.2.
 
-Most common weaknesses:
-  Improper Access Control (CWE-284): 753
-  XSS (CWE-79): 741
-  Missing Authorization (CWE-862): 399
-  Information Exposure (CWE-200): 323
-  Path Traversal (CWE-22): 313
+Most frequently assigned weaknesses:
+  Improper Access Control (CWE-284): 901
+  XSS (CWE-79): 749
+  Missing Authorization (CWE-862): 453
+  Missing Authentication (CWE-306): 388
+  SQL Injection (CWE-89): 386
 
-If this is the new baseline, what gives out first in your triage?
+What breaks first when a record year becomes an average one?
 
 Source: NVD, excluding rejected CVEs
 

@@ -8,6 +8,8 @@ Generates comprehensive YTD statistics including:
 - Daily and monthly averages
 """
 
+import calendar
+import math
 from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -29,7 +31,7 @@ CLAIM_VARIANTS = {
         "Beating last year's total stopped being news once it happened in summer.",
     ],
     "projected_pass": [
-        "This year stops being a trend and starts being the new floor.",
+        "This is not a spike year, it is the floor the next one starts from.",
         "Last year's record already has an expiry date, and it lands this quarter.",
         "The question is no longer whether the record falls, but by how much.",
     ],
@@ -96,6 +98,28 @@ QUESTION_VARIANTS = {
         "Would you re-staff on the strength of one down year?",
     ],
 }
+
+
+# Assigning-source identifiers are email addresses. These are the display names
+# for the ones that publish at a volume worth naming in a post.
+SOURCE_DISPLAY_NAMES = {
+    "oracle.com": "Oracle",
+    "github.com": "GitHub",
+    "microsoft.com": "Microsoft",
+    "google.com": "Google",
+    "chromium.org": "Chrome",
+    "apache.org": "Apache",
+    "vuldb.com": "VulDB",
+    "patchstack.com": "Patchstack",
+    "wordfence.com": "Wordfence",
+    "vulncheck.com": "VulnCheck",
+    "mitre.org": "MITRE",
+    "redhat.com": "Red Hat",
+}
+
+# A source or a single day at or above this share of the month is a batch, not a
+# trend, and gets disclosed rather than left for a reader to discover.
+CONCENTRATION_THRESHOLD = 0.10
 
 
 class YTDAnalyzer:
@@ -382,10 +406,24 @@ class YTDAnalyzer:
             "month_percent": month_percent,
             "avg_cves_per_day": avg_per_day,
         }
-        stats.update(self._long_run_context(current_ytd_total, avg_per_day))
+        month_days = calendar.monthrange(self.current_year, current_month)[1]
+        stats.update(
+            self._long_run_context(
+                current_ytd_total,
+                avg_per_day,
+                current_month,
+                month_rate=current_month_count / month_days if month_days else 0,
+            )
+        )
         return stats
 
-    def _long_run_context(self, current_ytd_total: int, avg_per_day: float) -> dict:
+    def _long_run_context(
+        self,
+        current_ytd_total: int,
+        avg_per_day: float,
+        through_month: int,
+        month_rate: Optional[float] = None,
+    ) -> dict:
         """All-time and prior-full-year context for the year to date.
 
         The rest of this class only ever compares the current year against the
@@ -406,8 +444,24 @@ class YTDAnalyzer:
         }
         recent = dict(list(prior_totals.items())[-PRIOR_YEARS_SHOWN:])
 
+        # Count all-time through the same cut-off the rest of the release uses.
+        # The raw scan total includes anything published after the reporting
+        # month ended, which on the 1st means today's records sitting under a
+        # "Data through July 31" footer.
+        last_day = calendar.monthrange(self.current_year, through_month)[1]
+        all_time = 0
+        for year, days in scan["by_day"].items():
+            if year < self.current_year:
+                all_time += sum(days.values())
+            else:
+                all_time += sum(
+                    n
+                    for (month, day), n in days.items()
+                    if (month, day) <= (through_month, last_day)
+                )
+
         context: dict[str, Any] = {
-            "all_time_total": int(scan["all_time"]),
+            "all_time_total": int(all_time),
             "first_year_on_record": min(prior_totals) if prior_totals else None,
             "prior_year_totals": recent,
             "previous_year_full_total": previous_full,
@@ -418,15 +472,31 @@ class YTDAnalyzer:
 
         remaining = previous_full - current_ytd_total
         if previous_full and remaining > 0 and avg_per_day > 0:
-            days_needed = int(remaining / avg_per_day) + 1
             context["cves_to_pass_previous_year"] = remaining
-            context["days_to_pass_previous_year"] = days_needed
-            # Only a projection, and only worth stating while it lands this year.
-            projected = datetime.now() + timedelta(days=days_needed)
-            if projected.year == self.current_year:
-                context["projected_pass_date"] = (
-                    f"{projected.strftime('%B')} {projected.day}"
-                )
+
+            # Count forward from the last day of data, not from today. The two
+            # differ on the 1st, which is exactly when this runs.
+            last_day = calendar.monthrange(self.current_year, through_month)[1]
+            anchor = date(self.current_year, through_month, last_day)
+
+            def project(rate: float, key: str) -> Optional[int]:
+                if rate <= 0:
+                    return None
+                days = math.ceil(remaining / rate)
+                landing = anchor + timedelta(days=days)
+                if landing.year == self.current_year:
+                    context[key] = f"{landing.strftime('%B')} {landing.day}"
+                return days
+
+            # The year's average is the conservative estimate; the reporting
+            # month's own rate is the one consistent with a post about
+            # acceleration. Publishing both makes the spread the story.
+            days_at_average = project(avg_per_day, "projected_pass_date")
+            if month_rate and month_rate > 0:
+                project(month_rate, "projected_pass_date_at_month_rate")
+                context["month_daily_rate"] = round(month_rate, 1)
+            if days_at_average is not None:
+                context["days_to_pass_previous_year"] = days_at_average
 
         return context
 
@@ -462,9 +532,17 @@ class YTDAnalyzer:
         An in-progress month's change is a part-month against a whole one, so it
         does not get a vote on the framing.
         """
+        # Only an achieved milestone takes the opening line. A *projected* one
+        # was doing so too, and since a projection exists for most of a growing
+        # year that starved every growth band below: runaway, strong, steady and
+        # slight were unreachable. The projection still gets its own sentence in
+        # the body, so nothing is lost by letting the band speak first.
         if stats.get("passed_previous_year_total"):
             return "passed_prior_year"
-        if stats.get("projected_pass_date"):
+        # An imminent crossing is genuine news and earns the lead. A crossing
+        # six months out is not, and used to take it anyway.
+        days_out = stats.get("days_to_pass_previous_year")
+        if days_out is not None and days_out <= 45:
             return "projected_pass"
 
         yoy = stats["yoy_percent"]
@@ -505,12 +583,29 @@ class YTDAnalyzer:
         claim_key = self._situation(stats, month_complete)
         question_key = self._question_bucket(stats)
 
+        # Rotation advances between releases, not between runs. Re-running a
+        # month, which is what a workflow retry does, must reproduce the copy it
+        # produced the first time rather than quietly picking a different line.
+        release = f"{self.current_year}-{stats.get('current_month', 0):02d}"
+        if history.get("_release") == release:
+            claim_index = int(history.get(claim_key, 0))
+            question_index = int(history.get("_questions", {}).get(question_key, 0))
+            claim = CLAIM_VARIANTS[claim_key][
+                claim_index % len(CLAIM_VARIANTS[claim_key])
+            ]
+            question = QUESTION_VARIANTS[question_key][
+                question_index % len(QUESTION_VARIANTS[question_key])
+            ]
+            self._copy_choice = (claim, question)
+            return self._copy_choice
+
         claim, claim_index = self._pick(CLAIM_VARIANTS, claim_key, history)
         question, question_index = self._pick(
             QUESTION_VARIANTS, question_key, history.get("_questions", {})
         )
 
         if self.history_file:
+            history["_release"] = release
             history[claim_key] = claim_index
             history.setdefault("_questions", {})[question_key] = question_index
             try:
@@ -538,7 +633,53 @@ class YTDAnalyzer:
             and analysis["statistics"]["current_month"] == now.month
         )
 
-    def get_summary_text(self, analysis: dict) -> str:
+    @staticmethod
+    def _source_name(identifier: str) -> Optional[str]:
+        """A postable name for an assigning-source identifier, if one is known."""
+        if not identifier or "@" not in identifier:
+            return None
+        domain = identifier.rsplit("@", 1)[1].lower()
+        for suffix, name in SOURCE_DISPLAY_NAMES.items():
+            if domain == suffix or domain.endswith("." + suffix):
+                return name
+        return None
+
+    def _concentration_line(self, monthly_report: dict, month_total: int) -> str:
+        """Disclose a batch that is driving the month's headline.
+
+        A quarterly release from one vendor lands as one source dominating one
+        day. That is a batch, not a trend, and a reader who spots it unaided will
+        discount the whole release, so it is stated first. Deliberately keyed on
+        the biggest *day*, not the biggest publisher over the month: the largest
+        publisher is usually just the most prolific one, and naming it here would
+        pin a spike on whoever happens to publish continuously.
+        """
+        daily = (monthly_report or {}).get("daily") or {}
+        count = daily.get("busiest_day_count")
+        busiest = daily.get("busiest_day")
+        if not (count and busiest and month_total):
+            return ""
+        if count / month_total < CONCENTRATION_THRESHOLD:
+            return ""
+
+        try:
+            day = datetime.fromisoformat(str(busiest))
+            label = f"{day.strftime('%B')} {day.day}"
+        except ValueError:
+            label = str(busiest)
+
+        source_count = daily.get("busiest_day_top_source_count")
+        name = self._source_name(str(daily.get("busiest_day_top_source") or ""))
+        if name and source_count and source_count / count >= 0.5:
+            return (
+                f" {label} alone carried {int(count):,} of them, "
+                f"{int(source_count):,} of those from {name}."
+            )
+        return f" {label} alone carried {int(count):,} of them."
+
+    def get_summary_text(
+        self, analysis: dict, monthly_report: Optional[dict] = None
+    ) -> str:
         """
         Generate the social post text (also used as the GitHub release body).
 
@@ -567,7 +708,8 @@ class YTDAnalyzer:
         if complete:
             month_line = (
                 f"{current_month_name} {year} closed at {month_count} published "
-                f"CVEs, {month_pct} against {current_month_name} {previous_year}."
+                f"CVEs against {stats['previous_month_count']:,} in "
+                f"{current_month_name} {previous_year}, {month_pct}."
             )
         else:
             # Quoting a change here would compare a part-month against the prior
@@ -585,14 +727,17 @@ class YTDAnalyzer:
             f"{claim}\n\n"
             f"{month_line}\n\n"
             f"That puts {year} at {ytd_total} CVEs year to date, {ytd_pct} year over "
-            f"year, and {avg_per_day} new CVEs every day."
-            f"{self._milestone_line(stats, year, previous_year)}\n\n"
+            f"year, and {avg_per_day} CVEs published a day so far this year."
+            f"{self._concentration_line(monthly_report or {}, stats['current_month_count'])}"
+            f"{self._milestone_line(stats, year, previous_year, current_month_name)}\n\n"
             f"{question}\n\n"
             f"Source: NVD, excluding rejected CVEs"
         )
 
     @staticmethod
-    def _milestone_line(stats: dict, year: int, previous_year: int) -> str:
+    def _milestone_line(
+        stats: dict, year: int, previous_year: int, month_name: str = ""
+    ) -> str:
         """The prior-full-year comparison, when there is one worth stating.
 
         Returns a sentence to append, or an empty string. Kept to one sentence so
@@ -619,6 +764,19 @@ class YTDAnalyzer:
         projected = stats.get("projected_pass_date")
         if projected:
             remaining = stats["cves_to_pass_previous_year"]
+            at_month = stats.get("projected_pass_date_at_month_rate")
+            # Two rates, because they disagree and the spread is the point: the
+            # year's average is the conservative read, the reporting month's own
+            # pace is the one consistent with a post about acceleration.
+            if at_month and at_month != projected:
+                # One claim, true at both rates. Two dates three days apart
+                # reads as declining to commit, and the reporting month's pace
+                # can embed a batch the next month has no equivalent of.
+                week = _week_of_month(at_month, projected)
+                return (
+                    f" All of {previous_year} came to {previous_full:,}. {year} "
+                    f"passes it in another {remaining:,} CVEs, {week}."
+                )
             return (
                 f" All of {previous_year} came to {previous_full:,}, so at the "
                 f"current rate {year} passes a full {previous_year} in another "
@@ -733,10 +891,35 @@ class YTDAnalyzer:
             f"{claim}\n\n"
             f"{month_clause} "
             f"{year} at {ytd_total} year to date ({ytd_pct} year over year) and "
-            f"{avg_day} new CVEs every day."
+            f"{avg_day} CVEs published a day so far this year."
             f"{cvss_line}"
             f"{cwe_lines}"
             f"\n\n{question}"
             f"\n\nSource: NVD, excluding rejected CVEs"
             f"\n\n#CVE #VulnerabilityManagement #InfoSec"
         )
+
+
+def _week_of_month(*dates: Optional[str]) -> str:
+    """Phrase a projection as the week it lands in.
+
+    Two projected dates a few days apart invite a reader to treat the spread as
+    uncertainty about whether it happens at all. The week is the honest unit: it
+    is true at either rate, and it commits.
+    """
+    days, month = [], None
+    for value in dates:
+        if not value:
+            continue
+        parts = str(value).split()
+        if len(parts) == 2 and parts[1].isdigit():
+            month = month or parts[0]
+            days.append(int(parts[1]))
+    if not days or not month:
+        return "some time next month"
+    ordinal = {1: "first", 2: "second", 3: "third", 4: "fourth", 5: "fifth"}
+    weeks = {(day - 1) // 7 + 1 for day in days}
+    if len(weeks) == 1:
+        return f"in the {ordinal[weeks.pop()]} week of {month}"
+    low, high = min(weeks), max(weeks)
+    return f"between the {ordinal[low]} and {ordinal[high]} weeks of {month}"

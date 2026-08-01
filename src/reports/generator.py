@@ -12,7 +12,7 @@ import pandas as pd
 # section not listed here falls back to a title-cased version of its key.
 SECTION_TITLES = {
     "Summary": "Summary",
-    "cvss": "CVSS Scores",
+    "cvss": "CVSS v3.x Scores",
     "cna": "CVE Numbering Authorities",
     "cwe": "Weakness Types",
     "daily": "Daily Publication",
@@ -31,6 +31,13 @@ NESTED_TABLES = {
 
 # How acronym tokens are cased when a snake_case key becomes a label. Plurals are
 # listed explicitly so 'cves' does not come out as 'CVES'.
+_LABEL_OVERRIDES = {
+    "scored_cves_v3": "Scored on CVSS v3.x",
+    "scored_v4_only": "Scored on CVSS v4.0 only",
+    "unscored_cves": "No CVSS score of any version",
+    "scored_share_percent": "Scored share, any version (%)",
+}
+
 _ACRONYM_FORMS = {
     "cvss": "CVSS",
     "cve": "CVE",
@@ -75,6 +82,8 @@ def _label(key: str) -> str:
     'Total CVEs' summary keys) are passed through untouched.
     """
     key = str(key)
+    if key in _LABEL_OVERRIDES:
+        return _LABEL_OVERRIDES[key]
     if " " in key:
         return key
 

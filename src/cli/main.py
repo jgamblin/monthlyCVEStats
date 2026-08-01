@@ -287,7 +287,17 @@ def generate_ytd_report() -> None:
 
     # Generate summary text
     logger.info("Generating summary text for social posts...")
-    summary_text = ytd_analyzer.get_summary_text(analysis)
+    # The month's report carries the source and daily concentration the post
+    # needs in order to disclose a batch driving the headline.
+    year, month = Config.get_current_month_info()
+    month_name = datetime(year, month, 1).strftime("%B")
+    report_json = Config.get_report_output_dir(year, month) / f"{month_name}.json"
+    monthly_report = {}
+    if report_json.exists():
+        with open(report_json) as f:
+            monthly_report = json.load(f).get("data", {})
+
+    summary_text = ytd_analyzer.get_summary_text(analysis, monthly_report)
 
     # Save summary to file
     summary_file = output_dir / "post.txt"
@@ -295,12 +305,7 @@ def generate_ytd_report() -> None:
     logger.info(f"✓ Summary saved to {summary_file}")
 
     # Generate enriched post with CVSS/CWE context from monthly report
-    year, month = Config.get_current_month_info()
-    month_name = datetime(year, month, 1).strftime("%B")
-    report_json = Config.get_report_output_dir(year, month) / f"{month_name}.json"
-    if report_json.exists():
-        with open(report_json) as f:
-            monthly_report = json.load(f).get("data", {})
+    if monthly_report:
         enriched_text = ytd_analyzer.get_enriched_text(analysis, monthly_report)
         enriched_file = output_dir / "enriched_post.txt"
         enriched_file.write_text(enriched_text)

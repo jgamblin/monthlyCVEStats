@@ -1,9 +1,9 @@
-Last year's record already has an expiry date, and it lands this quarter.
+This is not a spike year, it is the floor the next one starts from.
 
-July 2026 closed at 9,775 published CVEs, +158.9% against July 2025.
+July 2026 closed at 9,775 published CVEs against 3,776 in July 2025, +158.9%.
 
-That puts 2026 at 45,626 CVEs year to date, +66.4% year over year, and 215 new CVEs every day. All of 2025 came to 48,162, so at the current rate 2026 passes a full 2025 in another 2,536 CVEs, around August 13.
+That puts 2026 at 45,626 CVEs year to date, +66.4% year over year, and 215 CVEs published a day so far this year. July 21 alone carried 1,474 of them, 1,097 of those from Oracle. All of 2025 came to 48,162. 2026 passes it in another 2,536 CVEs, in the second week of August.
 
-Are you planning next year against this year's numbers, or last year's?
+What breaks first when a record year becomes an average one?
 
 Source: NVD, excluding rejected CVEs

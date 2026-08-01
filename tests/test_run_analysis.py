@@ -92,7 +92,7 @@ def test_month_statistics_cover_only_that_month(isolated_outputs):
     """The month's own sections are scoped to the month, not the year to date."""
     cli.run_analysis(2026, 6)
     data = read_report(isolated_outputs, 2026, "June")
-    assert data["cvss"]["scored_cves"] == 10
+    assert data["cvss"]["scored_cves_v3"] == 10
     assert data["daily"]["days_with_cves"] <= 30
 
 

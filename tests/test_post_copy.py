@@ -339,10 +339,9 @@ def test_pending_milestone_projects_the_crossover(analyzer, monkeypatch):
 
     assert "All of 2025 came to 48,162" in text
     assert "4,295 CVEs" in text  # what is left to close the gap
-    assert "around August 15" in text
-    assert text.splitlines()[0] == (
-        "This year stops being a trend and starts being the new floor."
-    )
+    # Projected from the last day of data, not from today.
+    assert "around August" in text
+    assert text.splitlines()[0] == CLAIM_VARIANTS["projected_pass"][0]
 
 
 def test_passed_milestone_leads_the_post(analyzer, monkeypatch):
@@ -410,10 +409,12 @@ def test_repeated_situations_rotate_the_claim(tmp_path):
     """A run of similar months must not open with the same sentence each time."""
     history = tmp_path / "claim_history.json"
     seen = []
-    for _ in range(4):
+    for month in (3, 4, 5, 6):  # four successive releases
         analyzer = YTDAnalyzer(Path("data/nvd.jsonl"))
         analyzer.history_file = history
-        seen.append(analyzer.get_summary_text(analysis()).splitlines()[0])
+        payload = analysis()
+        payload["statistics"]["current_month"] = month
+        seen.append(analyzer.get_summary_text(payload).splitlines()[0])
 
     variants = CLAIM_VARIANTS["strong"]
     # Three distinct lines before it has to reuse one, then it cycles.
@@ -425,10 +426,12 @@ def test_repeated_situations_rotate_the_claim(tmp_path):
 def test_questions_rotate_independently(tmp_path):
     history = tmp_path / "claim_history.json"
     asked = []
-    for _ in range(3):
+    for month in (3, 4, 5):  # three successive releases
         analyzer = YTDAnalyzer(Path("data/nvd.jsonl"))
         analyzer.history_file = history
-        text = analyzer.get_summary_text(analysis())
+        payload = analysis()
+        payload["statistics"]["current_month"] = month
+        text = analyzer.get_summary_text(payload)
         asked.append([line for line in text.splitlines() if line.endswith("?")][0])
 
     assert asked == QUESTION_VARIANTS["growing"]
@@ -511,3 +514,50 @@ def test_one_release_advances_the_history_once(tmp_path):
     recorded = _json.loads(history.read_text())
     assert recorded["strong"] == 0
     assert recorded["_questions"]["growing"] == 0
+
+
+def test_a_distant_crossing_does_not_take_the_opening_line(analyzer):
+    """A projection six months out is not news, and used to starve every band.
+
+    While projected_pass fired on the mere existence of a projection, runaway,
+    strong, steady and slight were unreachable in any growing year.
+    """
+    payload = analysis(yoy_percent=39.9)
+    payload["statistics"].update(
+        {
+            "previous_year_full_total": 48162,
+            "passed_previous_year_total": False,
+            "cves_to_pass_previous_year": 20000,
+            "days_to_pass_previous_year": 120,
+            "projected_pass_date": "November 20",
+        }
+    )
+    assert analyzer._situation(payload["statistics"]) == "strong"
+
+
+def test_an_imminent_crossing_still_leads(analyzer):
+    payload = analysis(yoy_percent=39.9)
+    payload["statistics"].update(
+        {
+            "previous_year_full_total": 48162,
+            "passed_previous_year_total": False,
+            "cves_to_pass_previous_year": 2536,
+            "days_to_pass_previous_year": 8,
+            "projected_pass_date": "August 8",
+        }
+    )
+    assert analyzer._situation(payload["statistics"]) == "projected_pass"
+
+
+def test_rerunning_the_same_release_reproduces_the_copy(tmp_path):
+    """A workflow retry must not quietly change the post it already published."""
+    history = tmp_path / "claim_history.json"
+
+    def run():
+        analyzer = YTDAnalyzer(Path("data/nvd.jsonl"))
+        analyzer.history_file = history
+        return analyzer.get_summary_text(analysis())
+
+    first = run()
+    assert run() == first
+    assert run() == first

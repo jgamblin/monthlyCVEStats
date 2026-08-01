@@ -190,7 +190,10 @@ class TrendAnalyzer:
 
             return {
                 "period": _PERIOD_LABELS.get(period, period),
-                "periods_compared": int(len(counts)),
+                # n periods yield n-1 changes; reporting the period count beside
+                # a mean of the changes implied one more sample than existed.
+                "months_included": int(len(counts)),
+                "changes_averaged": int(len(growth)),
                 "avg_growth_percent": round(float(growth.mean()), 1),
                 "fastest_growth_period": str(fastest),
                 "fastest_growth_percent": round(float(growth.max()), 1),

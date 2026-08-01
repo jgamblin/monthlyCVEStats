@@ -63,9 +63,19 @@ class StatisticsAnalyzer:
         for label, low, high in SEVERITY_BANDS:
             severity[label] = int(cvss_data.between(low, high).sum())
 
-        return {
-            "scored_cves": int(len(cvss_data)),
-            "unscored_cves": int(len(df) - len(cvss_data)),
+        # A CVE with only a v4 score is scored, just not on this scale. Counting
+        # it as unscored published a number three times the real one.
+        v4_only = 0
+        if "cvss_v4_score" in df.columns:
+            has_v3 = pd.to_numeric(df[cvss_col], errors="coerce").notna()
+            has_v4 = pd.to_numeric(df["cvss_v4_score"], errors="coerce").notna()
+            v4_only = int((has_v4 & ~has_v3).sum())
+        unscored = int(len(df) - len(cvss_data) - v4_only)
+
+        result = {
+            "scored_cves_v3": int(len(cvss_data)),
+            "scored_v4_only": v4_only,
+            "unscored_cves": unscored,
             "mean": round(float(cvss_data.mean()), 2),
             "median": round(float(cvss_data.median()), 2),
             "std_dev": round(float(cvss_data.std()), 2),
@@ -75,6 +85,10 @@ class StatisticsAnalyzer:
             "percentile_75": round(float(cvss_data.quantile(0.75)), 1),
             "severity_counts": severity,
         }
+        if len(df):
+            scored_any = len(cvss_data) + v4_only
+            result["scored_share_percent"] = round(scored_any / len(df) * 100, 1)
+        return result
 
     def analyze_by_cna(self, df: pd.DataFrame, top_n: int = 10) -> dict:
         """Analyze CVEs by CVE Numbering Authority (CNA).
@@ -130,17 +144,31 @@ class StatisticsAnalyzer:
             exploded = df[cwe_col].dropna()
             counted_all = False
 
-        cwe_counts = exploded.value_counts()
-        if cwe_counts.empty:
+        # NVD-CWE-noinfo and NVD-CWE-Other record the absence of a mapping, so
+        # counting them as weaknesses inflates every total and can rank "no
+        # information" above real weaknesses, which has already been published
+        # once. They are reported separately instead.
+        placeholders = exploded[~exploded.astype(str).str.startswith("CWE-")]
+        real = exploded[exploded.astype(str).str.startswith("CWE-")]
+
+        if real.empty:
             return {}
 
-        return {
-            "top_cwes": cwe_counts.head(top_n).to_dict(),
-            "total_unique_cwes": int(exploded.nunique()),
-            "total_assignments": int(len(exploded)),
-            "cves_with_a_cwe": int(exploded.index.nunique()),
+        # Sort by count then by id, so a tie does not rank on row order and the
+        # same input always produces the same table.
+        counts = real.value_counts()
+        ordered = sorted(counts.items(), key=lambda item: (-item[1], str(item[0])))
+
+        result = {
+            "top_cwes": {name: int(n) for name, n in ordered[:top_n]},
+            "total_unique_cwes": int(real.nunique()),
+            "total_assignments": int(len(real)),
+            "cves_with_a_cwe": int(real.index.nunique()),
             "counts_all_weaknesses": counted_all,
         }
+        if not placeholders.empty:
+            result["unmapped_records"] = int(placeholders.index.nunique())
+        return result
 
     def daily_distribution(self, df: pd.DataFrame) -> dict:
         """Analyze daily CVE distribution.
@@ -173,7 +201,22 @@ class StatisticsAnalyzer:
             span = (daily_counts.index[-1] - daily_counts.index[0]).days + 1
             calendar_days = max(span, 1)
 
-            return {
+            # Who drove the biggest day. A quarterly vendor release lands as one
+            # source dominating one day, which is a batch rather than a trend and
+            # is the single most useful thing to disclose about a spike. The
+            # largest publisher over the whole month is a different, duller
+            # question, and answering that one instead misattributes the spike.
+            busiest_source = busiest_source_count = None
+            cna_col = find_column(df, CNA_COLUMNS)
+            if cna_col is not None:
+                on_busiest = df[dates.dt.date.values == busiest]
+                if not on_busiest.empty:
+                    sources = on_busiest[cna_col].value_counts()
+                    if not sources.empty:
+                        busiest_source = str(sources.index[0])
+                        busiest_source_count = int(sources.iloc[0])
+
+            result = {
                 "days_with_cves": int(len(daily_counts)),
                 "calendar_days_covered": int(calendar_days),
                 "avg_cves_per_day": round(float(dates.size / calendar_days), 1),
@@ -182,6 +225,10 @@ class StatisticsAnalyzer:
                 "quietest_day": str(quietest),
                 "quietest_day_count": int(daily_counts.min()),
             }
+            if busiest_source:
+                result["busiest_day_top_source"] = busiest_source
+                result["busiest_day_top_source_count"] = busiest_source_count
+            return result
         except Exception as e:
             self.logger.error(f"Error calculating daily distribution: {e}")
             return {}

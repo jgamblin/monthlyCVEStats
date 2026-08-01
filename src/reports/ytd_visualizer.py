@@ -275,20 +275,10 @@ class YTDVisualizer:
         # Rank only completed months: a part-month total is not comparable to a
         # whole one, so an in-progress month must not be called the busiest.
         ranked_through = through_month if month_complete else through_month - 1
-        footer = self._month_extremes(
+        footer_parts = self._month_extremes(
             monthly_data, previous_monthly_data, ranked_through
         )
-        if footer:
-            fig.text(
-                0.05,
-                geo["footer_y"],
-                footer,
-                fontfamily=style.BODY_FONT,
-                fontsize=geo["footer_size"],
-                color=colors["secondary"],
-                ha="left",
-                va="bottom",
-            )
+        self._draw_footer(fig, footer_parts, geo, colors)
 
         style.draw_footnote(fig, "Source: NVD, excluding rejected CVEs", colors)
 
@@ -302,6 +292,52 @@ class YTDVisualizer:
         )
         logger.info("Chart written to %s", output_path)
         return output_path
+
+    def _draw_footer(self, fig, parts: list, geo: dict, colors: dict) -> None:
+        """Draw the month-extremes line, wrapped so it cannot run off the canvas.
+
+        The width is measured rather than guessed. Month names, counts and
+        percentages all change length month to month, and a fixed character
+        budget sheared the last word off four of the six charts the first time a
+        three-digit growth figure appeared.
+        """
+        if not parts:
+            return
+
+        renderer = fig.canvas.get_renderer()
+        available = 0.90  # figure fraction between the left and right margins
+        size = geo["footer_size"]
+
+        lines = []
+        for per_line in (len(parts), 2, 1):
+            groups = [parts[i : i + per_line] for i in range(0, len(parts), per_line)]
+            lines = ["  ·  ".join(group) for group in groups]
+            probes = [
+                fig.text(0.05, -1, line, fontfamily=style.BODY_FONT, fontsize=size)
+                for line in lines
+            ]
+            widest = max(
+                probe.get_window_extent(renderer).width / fig.bbox.width
+                for probe in probes
+            )
+            for probe in probes:
+                probe.remove()
+            if widest <= available:
+                break
+
+        # Stack upward from the anchor so the block grows away from the footnote.
+        line_height = (size * 1.7 / 72) * style.SAVE_DPI / fig.bbox.height
+        for index, line in enumerate(lines):
+            fig.text(
+                0.05,
+                geo["footer_y"] + (len(lines) - 1 - index) * line_height,
+                line,
+                fontfamily=style.BODY_FONT,
+                fontsize=size,
+                color=colors["secondary"],
+                ha="left",
+                va="bottom",
+            )
 
     def _annotate_gap(self, ax, days, current_values, previous_values, colors) -> None:
         """Bracket the gap between the two series at the reporting endpoint.
@@ -357,26 +393,28 @@ class YTDVisualizer:
         monthly_data: Optional[dict],
         previous_monthly_data: Optional[dict],
         through_month: int,
-    ) -> str:
+    ) -> list:
         """A one-line summary of the busiest, quietest, and fastest-growing month."""
         if not monthly_data:
-            return ""
+            return []
 
         counts = {m: monthly_data.get(m, 0) for m in range(1, through_month + 1)}
         non_zero = {m: c for m, c in counts.items() if c > 0}
         if not non_zero:
-            return ""
+            return []
 
         peak = max(non_zero, key=lambda month: non_zero[month])
         low = min(non_zero, key=lambda month: non_zero[month])
         # "completed" is load-bearing: the ranking deliberately skips a month
         # still in progress, so the label says so rather than leaving a reader to
         # wonder why the highest bar on the chart is not named here.
+        # "completed" once, on the first item: it explains why a month still in
+        # progress is absent from the ranking, and repeating it on every item
+        # pushed this line off the edge of the narrower canvases.
         parts = [
             f"Busiest completed month: {calendar.month_abbr[peak]} "
             f"({non_zero[peak]:,})",
-            f"Quietest completed month: {calendar.month_abbr[low]} "
-            f"({non_zero[low]:,})",
+            f"Quietest: {calendar.month_abbr[low]} ({non_zero[low]:,})",
         ]
 
         previous = previous_monthly_data or {}
@@ -391,11 +429,11 @@ class YTDVisualizer:
             # Name the comparison, so the number is not stranded next to the
             # year-to-date growth figure looking like a rival for it.
             parts.append(
-                f"Fastest YoY month: {calendar.month_abbr[best_month]}, "
-                f"{best_growth:+.1f}% vs {calendar.month_abbr[best_month]} last year"
+                f"Fastest YoY: {calendar.month_abbr[best_month]} "
+                f"{best_growth:+.1f}% on last year"
             )
 
-        return "  ·  ".join(parts)
+        return parts
 
     # -- backwards-compatible entry points ----------------------------------
 

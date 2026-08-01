@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T10:36:07.993902",
+  "generated_at": "2026-08-01T12:30:36.355926",
   "data": {
     "Summary": {
       "Month": "July",
@@ -7,8 +7,9 @@
       "Total CVEs": 9775
     },
     "cvss": {
-      "scored_cves": 8636,
-      "unscored_cves": 1139,
+      "scored_cves_v3": 8636,
+      "scored_v4_only": 760,
+      "unscored_cves": 379,
       "mean": 7.07,
       "median": 7.3,
       "std_dev": 1.74,
@@ -22,7 +23,8 @@
         "Medium": 3216,
         "High": 3855,
         "Critical": 1199
-      }
+      },
+      "scored_share_percent": 96.1
     },
     "cna": {
       "top_cnas": {
@@ -41,18 +43,22 @@
     },
     "cwe": {
       "top_cwes": {
-        "CWE-284": 753,
-        "CWE-79": 741,
-        "CWE-862": 399,
-        "CWE-200": 323,
-        "CWE-22": 313,
-        "CWE-89": 282,
-        "CWE-416": 280,
-        "CWE-306": 267,
-        "CWE-20": 266,
-        "CWE-269": 228
+        "CWE-284": 901,
+        "CWE-79": 749,
+        "CWE-862": 453,
+        "CWE-306": 388,
+        "CWE-89": 386,
+        "CWE-200": 347,
+        "CWE-416": 332,
+        "CWE-22": 314,
+        "CWE-20": 268,
+        "CWE-269": 248
       },
-      "total_unique_cwes": 338
+      "total_unique_cwes": 357,
+      "total_assignments": 10495,
+      "cves_with_a_cwe": 8874,
+      "counts_all_weaknesses": true,
+      "unmapped_records": 96
     },
     "daily": {
       "days_with_cves": 31,
@@ -61,7 +67,9 @@
       "busiest_day": "2026-07-21",
       "busiest_day_count": 1474,
       "quietest_day": "2026-07-26",
-      "quietest_day_count": 15
+      "quietest_day_count": 15,
+      "busiest_day_top_source": "secalert_us@oracle.com",
+      "busiest_day_top_source_count": 1097
     },
     "monthly_trend": {
       "monthly_counts": {
@@ -83,7 +91,8 @@
     },
     "growth": {
       "period": "Monthly",
-      "periods_compared": 7,
+      "months_included": 7,
+      "changes_averaged": 6,
       "avg_growth_percent": 15.4,
       "fastest_growth_period": "2026-03",
       "fastest_growth_percent": 35.1,

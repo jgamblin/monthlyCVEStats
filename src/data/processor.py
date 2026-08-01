@@ -85,6 +85,16 @@ class DataProcessor:
                     flat["cvss_v3_score"] = cvss_data["cvssData"].get("baseScore")
                     flat["cvss_v3_vector"] = cvss_data["cvssData"].get("vectorString")
 
+            # v4.0 is carried separately rather than merged into the v3 figures:
+            # the scales are not interchangeable, and mixing them would break
+            # comparability with every month already published. Without this a
+            # v4-only CVE counts as unscored, which in July 2026 overstated the
+            # unscored total threefold.
+            if "cvssMetricV40" in metrics and metrics["cvssMetricV40"]:
+                cvss_v4 = metrics["cvssMetricV40"][0]
+                if "cvssData" in cvss_v4:
+                    flat["cvss_v4_score"] = cvss_v4["cvssData"].get("baseScore")
+
         # Extract CNA
         if "cve" in cve:
             cve_obj = cve["cve"]

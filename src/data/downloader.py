@@ -79,19 +79,31 @@ class NVDDownloader:
         """
         self.output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Check if file already exists and get its size
-        start_byte = 0
-        if resume and self.output_file.exists():
-            start_byte = self.output_file.stat().st_size
-            self.logger.info(f"Resuming download from byte {start_byte}")
-
-        headers = {}
-        if resume and start_byte > 0:
-            headers["Range"] = f"bytes={start_byte}-"
-
         try:
             session = self._get_session_with_retries()
             remote_size = self._get_remote_size()
+
+            # Only resume a file that is genuinely a partial copy of what is
+            # being served now. A local file at or beyond the remote size is not
+            # a partial download, it is a complete one from an earlier run, and
+            # resuming from its end appends a second copy of the feed.
+            start_byte = 0
+            if resume and self.output_file.exists():
+                local_size = self.output_file.stat().st_size
+                if remote_size and local_size >= remote_size:
+                    self.logger.info(
+                        "Local file is %d bytes against a remote %d; starting over "
+                        "rather than resuming past the end",
+                        local_size,
+                        remote_size,
+                    )
+                elif local_size > 0:
+                    start_byte = local_size
+                    self.logger.info(f"Resuming download from byte {start_byte}")
+
+            headers = {}
+            if start_byte > 0:
+                headers["Range"] = f"bytes={start_byte}-"
 
             response = session.get(
                 self.source_url,
@@ -100,6 +112,19 @@ class NVDDownloader:
                 timeout=30,
             )
             response.raise_for_status()
+
+            # A range request that comes back 200 carries the WHOLE body, not the
+            # tail. Appending it produces a file that is valid bytes and invalid
+            # JSON, which only surfaces later as a parse error a long way from
+            # the cause.
+            if start_byte > 0 and response.status_code != 206:
+                self.logger.warning(
+                    "Requested bytes from %d but the server returned %d rather "
+                    "than 206; rewriting the file from the start",
+                    start_byte,
+                    response.status_code,
+                )
+                start_byte = 0
 
             total_size = remote_size or int(response.headers.get("content-length", 0))
             downloaded = start_byte
