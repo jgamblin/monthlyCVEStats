@@ -1,9 +1,9 @@
-This is not a spike year, it is the floor the next one starts from.
+Last year's record is no longer a ceiling, it is a midpoint.
 
-July 2026 closed at 9,775 published CVEs against 3,776 in July 2025, +158.9%.
+August 2026 closed at 12,291 published CVEs against 3,628 in August 2025, +238.8%.
 
-That puts 2026 at 45,626 CVEs year to date, +66.4% year over year, and 215 CVEs published a day so far this year. July 21 alone carried 1,474 of them, 1,097 of those from Oracle. All of 2025 came to 48,162. 2026 passes it in another 2,536 CVEs, in the second week of August.
+That puts 2026 at 57,908 CVEs year to date, +86.5% year over year, and 238 CVEs published a day so far this year. August 18 alone carried 1,407 of them, 889 of those from Oracle. 2026 has now published more CVEs than the whole of 2025 (48,154), and is +9,754 past it with 4 months still to run.
 
-What breaks first when a record year becomes an average one?
+Are you planning next year against this year's numbers, or last year's?
 
 Source: NVD, excluding rejected CVEs

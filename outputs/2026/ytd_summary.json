@@ -1,32 +1,27 @@
 {
-  "generated_at": "2026-08-01T13:05:19.456051",
+  "generated_at": "2026-09-01T14:36:38.058213",
   "year": 2026,
   "statistics": {
-    "current_month": 7,
-    "current_ytd_total": 45626,
-    "previous_ytd_total": 27426,
-    "yoy_growth": 18200,
-    "yoy_percent": 66.36038795303726,
-    "current_month_count": 9775,
-    "previous_month_count": 3776,
-    "month_growth": 5999,
-    "month_percent": 158.87182203389833,
-    "avg_cves_per_day": 215.21698113207546,
-    "all_time_total": 354521,
+    "current_month": 8,
+    "current_ytd_total": 57908,
+    "previous_ytd_total": 31046,
+    "yoy_growth": 26862,
+    "yoy_percent": 86.52322360368485,
+    "current_month_count": 12291,
+    "previous_month_count": 3628,
+    "month_growth": 8663,
+    "month_percent": 238.78169790518191,
+    "avg_cves_per_day": 238.3045267489712,
+    "all_time_total": 366791,
     "first_year_on_record": 1988,
     "prior_year_totals": {
       "2021": 20149,
       "2022": 25074,
-      "2023": 28817,
-      "2024": 39957,
-      "2025": 48162
+      "2023": 28816,
+      "2024": 39954,
+      "2025": 48154
     },
-    "previous_year_full_total": 48162,
-    "passed_previous_year_total": false,
-    "cves_to_pass_previous_year": 2536,
-    "projected_pass_date": "August 12",
-    "projected_pass_date_at_month_rate": "August 9",
-    "month_daily_rate": 315.3,
-    "days_to_pass_previous_year": 12
+    "previous_year_full_total": 48154,
+    "passed_previous_year_total": true
   }
 }
