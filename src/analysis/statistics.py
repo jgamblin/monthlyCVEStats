@@ -166,8 +166,13 @@ class StatisticsAnalyzer:
             "cves_with_a_cwe": int(real.index.nunique()),
             "counts_all_weaknesses": counted_all,
         }
+        # Two different things, previously conflated under one misleading label.
+        # A record can carry NVD-CWE-noinfo *and* a real CWE, so the placeholder
+        # count is not the count of CVEs left without a weakness: it ran about an
+        # order of magnitude low and left the rest of the month unaccounted for.
         if not placeholders.empty:
-            result["unmapped_records"] = int(placeholders.index.nunique())
+            result["records_tagged_no_info"] = int(placeholders.index.nunique())
+        result["cves_without_a_cwe"] = int(len(df) - real.index.nunique())
         return result
 
     def daily_distribution(self, df: pd.DataFrame) -> dict:

@@ -361,8 +361,9 @@ def test_passed_milestone_leads_the_post(analyzer, monkeypatch):
         "Last year's record is no longer a ceiling, it is a midpoint."
     )
     assert "more CVEs than the whole of 2025 (48,162)" in text
-    assert "+1,838 past it" in text
-    assert "4 months still to run" in text
+    # The sign is carried by the word and a small count is spelled out.
+    assert "is 1,838 ahead with four months left to count" in text
+    assert "+1,838" not in text and "4 months" not in text
     # Still house-clean.
     for character in BANNED_CHARACTERS:
         assert character not in text
@@ -561,3 +562,97 @@ def test_rerunning_the_same_release_reproduces_the_copy(tmp_path):
     first = run()
     assert run() == first
     assert run() == first
+
+
+def _september_report():
+    """A monthly report carrying the v4 and multi-weakness figures."""
+    return {
+        "cvss": {
+            "median": 7.3,
+            "percentile_75": 8.1,
+            "scored_cves_v3": 11697,
+            "scored_v4_only": 1212,
+            "unscored_cves": 1518,
+        },
+        "cwe": {
+            "top_cwes": {"CWE-79": 1036, "CWE-862": 763},
+            "total_assignments": 14100,
+            "cves_with_a_cwe": 12197,
+            "counts_all_weaknesses": True,
+        },
+        "cna": {
+            "top_cnas": {
+                "416baaa9-dc9f-4396-8d5f-8c081fb06d67": 2115,
+                "disclosure@vulncheck.com": 1560,
+                "security-advisories@github.com": 1416,
+                "secure@microsoft.com": 1000,
+                "cna@vuldb.com": 899,
+                "secalert_us@oracle.com": 634,
+            }
+        },
+        "daily": {
+            "busiest_day": "2026-09-08",
+            "busiest_day_count": 1559,
+            "busiest_day_top_source": "secure@microsoft.com",
+            "busiest_day_top_source_count": 965,
+        },
+    }
+
+
+def _september_analysis():
+    payload = analysis(yoy_percent=104.4, month_percent=233.9)
+    payload["statistics"].update(
+        current_month=9, current_month_count=14427, previous_month_count=4321
+    )
+    return payload
+
+
+def test_enriched_post_says_what_the_median_covers(analyzer):
+    """A v3.x median presented as the month's median overstates its reach."""
+    text = analyzer.get_enriched_text(_september_analysis(), _september_report())
+    assert (
+        "Median CVSS v3.x was 7.3 with the 75th percentile at 8.1, across the "
+        "11,697 of 14,427 CVEs carrying a v3.x score. Another 1,212 carry only a "
+        "v4.0 score and 1,518 carry none."
+    ) in text
+
+
+def test_enriched_post_falls_back_without_version_figures(analyzer):
+    """An older report without the v4 split still gets a median line."""
+    text = analyzer.get_enriched_text(analysis(), MONTHLY_REPORT)
+    assert "Median CVSS came in at 7.1, with the 75th percentile at 8.1." in text
+
+
+def test_enriched_post_explains_assignment_counts(analyzer):
+    """The weakness counts exceed the CVE count, and the header says why."""
+    text = analyzer.get_enriched_text(_september_analysis(), _september_report())
+    assert (
+        "Most frequently assigned weaknesses, 14,100 assignments across 12,197 "
+        "CVEs since a CVE can carry more than one:"
+    ) in text
+
+
+def test_concentration_names_the_assigners_and_the_batch(analyzer):
+    """Both posts disclose how top-heavy the month is, in the same words."""
+    report = _september_report()
+    summary = analyzer.get_summary_text(_september_analysis(), report)
+    enriched = analyzer.get_enriched_text(_september_analysis(), report)
+    line = (
+        "Some of that is who is publishing rather than what is breaking: the five "
+        "busiest assigners supplied 6,990 of September's CVEs, 48.5%, and "
+        "September 8 alone carried 1,559, 965 of those from Microsoft."
+    )
+    assert line in summary
+    assert f"\n\n{line}\n\n" in enriched  # its own paragraph
+
+
+def test_concentration_survives_a_missing_section(analyzer):
+    """Without CNA figures the batch still reads as a whole sentence."""
+    report = _september_report()
+    del report["cna"]
+    text = analyzer.get_summary_text(_september_analysis(), report)
+    assert (
+        "September 8 alone carried 1,559 of September's CVEs, 965 of those from Microsoft."
+        in text
+    )
+    assert "busiest assigners" not in text

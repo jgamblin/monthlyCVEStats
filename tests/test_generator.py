@@ -164,3 +164,15 @@ def test_json_report_keys_are_stable(tmp_path):
     assert loaded["data"]["Summary"]["Total CVEs"] == 6952
     assert loaded["data"]["cvss"]["median"] == 7.1
     assert loaded["data"]["cwe"]["top_cwes"]["CWE-79"] == 571
+
+
+def test_methodology_flags_stay_out_of_the_tables():
+    """'Counts all weaknesses | Yes' in a table of counts reads as a mistake."""
+    from pathlib import Path
+
+    lines = ReportGenerator(Path("/tmp"))._render_section(
+        {"total_assignments": 14100, "counts_all_weaknesses": True}
+    )
+    text = "\n".join(lines)
+    assert "14,100" in text
+    assert "Counts all weaknesses" not in text and "Yes" not in text

@@ -36,7 +36,13 @@ _LABEL_OVERRIDES = {
     "scored_v4_only": "Scored on CVSS v4.0 only",
     "unscored_cves": "No CVSS score of any version",
     "scored_share_percent": "Scored share, any version (%)",
+    "records_tagged_no_info": "Records tagged NVD-CWE-noinfo or NVD-CWE-Other",
+    "cves_without_a_cwe": "CVEs with no CWE assigned",
 }
+
+# Methodology flags the analyzers record for the JSON. They are not figures,
+# and "Counts all weaknesses | Yes" in a table of counts reads as a mistake.
+_HIDDEN_KEYS = {"counts_all_weaknesses"}
 
 _ACRONYM_FORMS = {
     "cvss": "CVSS",
@@ -223,6 +229,8 @@ class ReportGenerator:
             lines.append("| Metric | Value |")
             lines.append("|---|---|")
             for key, value in scalars.items():
+                if key in _HIDDEN_KEYS:
+                    continue
                 lines.append(f"| {_label(key)} | {_fmt(value, key)} |")
 
         for key, table in nested.items():

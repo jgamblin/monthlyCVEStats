@@ -106,7 +106,35 @@ def test_cwe_analysis(df):
     assert result["total_unique_cwes"] == 3
     assert result["top_cwes"]["CWE-79"] == 3
     assert "NVD-CWE-noinfo" not in result["top_cwes"]
-    assert result["unmapped_records"] == 1
+    assert result["records_tagged_no_info"] == 1
+
+
+def test_a_placeholder_tag_is_not_a_missing_weakness(df):
+    """The published regression: one label was doing two jobs and got both wrong.
+
+    'Unmapped records' counted rows touching an NVD-CWE placeholder, but a row
+    can carry a placeholder *and* a real CWE, so it undercounted the CVEs with no
+    weakness by an order of magnitude while double-counting rows already inside
+    'CVEs with a CWE'. August 2026 shipped 127 where the true figure was 1,859.
+    """
+    # The case that made the old label wrong: a record carrying a placeholder
+    # *and* a real CWE. In August 2026, 123 of the 127 tagged records were these.
+    df = df.copy()
+    df["cwes"] = [
+        ["CWE-79"],
+        ["NVD-CWE-noinfo", "CWE-89"],  # tagged, but not missing a weakness
+        ["CWE-79"],
+        ["NVD-CWE-Other"],  # genuinely missing a weakness
+        ["CWE-22"],
+        ["CWE-79"],
+    ]
+    result = StatisticsAnalyzer().analyze_by_cwe(df)
+
+    # Three records are tagged with a placeholder, but only one lacks a real CWE.
+    assert result["records_tagged_no_info"] == 2
+    assert result["cves_without_a_cwe"] == 1
+    # The whole month must be accounted for: with a CWE, plus without, is the total.
+    assert result["cves_with_a_cwe"] + result["cves_without_a_cwe"] == len(df)
 
 
 def test_daily_distribution_finds_published(df):
@@ -156,7 +184,11 @@ def test_all_weaknesses_are_counted(df):
     assert result["total_assignments"] == 9
     assert result["total_unique_cwes"] == 5
     assert result["cves_with_a_cwe"] == 5
-    assert result["unmapped_records"] == 1
+    assert result["records_tagged_no_info"] == 1
+    # Six rows, five of which carry a real CWE: the placeholder-only row is the
+    # one genuinely missing a weakness, and it is not the same count as above
+    # whenever a row carries both a placeholder and a real CWE.
+    assert result["cves_without_a_cwe"] == 1
     assert "NVD-CWE-noinfo" not in result["top_cwes"]
 
 

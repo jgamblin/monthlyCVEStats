@@ -7,6 +7,7 @@ STATS = {
     "previous_ytd_total": 27426,
     "yoy_percent": 66.36,
     "avg_cves_per_day": 215.2,
+    "current_month_count": 9775,
 }
 CURRENT = {1: 4305, 2: 8921, 3: 15155, 4: 20966, 5: 27904, 6: 35851, 7: 45626}
 PREVIOUS = {1: 4100, 2: 8000, 3: 12000, 4: 16000, 5: 20000, 6: 23800, 7: 27426}
@@ -20,10 +21,12 @@ def growth():
         STATS,
         CURRENT,
         PREVIOUS,
-        extremes=[
-            "Busiest completed month: Jul (9,775)",
-            "Quietest: Jan (4,305)",
-        ],
+        extremes={
+            "busiest": (7, 9775),
+            "quietest": (1, 4305),
+            "fastest": (7, 158.9),
+        },
+        month_days=31,
     )
 
 
@@ -54,10 +57,48 @@ def test_shape_falls_back_when_the_series_never_separate():
 
 
 def test_extremes_are_read_as_sentences():
-    """The chart's middot separator is silent to a screen reader."""
+    """The chart's footer is abbreviated and middot-separated. Neither survives
+    a screen reader, so the alt text phrases the same figures as sentences."""
     text = growth()
     assert "·" not in text
-    assert "Busiest completed month: Jul (9,775). Quietest: Jan (4,305)." in text
+    assert "July was the busiest completed month with 9,775" in text
+    assert "January the quietest with 4,305" in text
+    # The same month tops both rankings, and the text says so once.
+    assert (
+        "July also had the largest year-over-year change, up 158.9 percent on July 2025."
+        in text
+    )
+    # Abbreviations belong to the footer.
+    assert "Jul " not in text and "Jan " not in text
+
+
+def test_fastest_month_is_named_when_it_differs_from_the_busiest():
+    text = alt_text.growth_chart(
+        2026,
+        "July 31, 2026",
+        7,
+        STATS,
+        CURRENT,
+        PREVIOUS,
+        extremes={"busiest": (7, 9775), "quietest": (1, 4305), "fastest": (5, 74.7)},
+    )
+    assert (
+        "May had the largest year-over-year change, up 74.7 percent on May 2025."
+        in text
+    )
+    assert "also" not in text
+
+
+def test_month_rate_sits_beside_the_year_rate():
+    """The stat tile only shows the year's rate. The month's is the takeaway."""
+    text = growth()
+    assert (
+        "The daily average is 215 CVEs across the year to date, and 315 a day in July."
+        in text
+    )
+    # Without the month's day count the year's rate stands alone, no dangling clause.
+    bare = alt_text.growth_chart(2026, "July 31, 2026", 7, STATS, CURRENT, PREVIOUS)
+    assert "The daily average is 215 CVEs across the year to date." in bare
 
 
 def test_long_form_fits_platform_limits():

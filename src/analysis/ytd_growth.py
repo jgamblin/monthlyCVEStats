@@ -121,6 +121,31 @@ SOURCE_DISPLAY_NAMES = {
 # trend, and gets disclosed rather than left for a reader to discover.
 CONCENTRATION_THRESHOLD = 0.10
 
+# How many assigners the concentration line names as "the busiest". Five is
+# enough to show how top-heavy a month is without turning into a league table.
+TOP_ASSIGNERS = 5
+
+_SMALL_NUMBERS = [
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+]
+
+
+def _spell(n: int) -> str:
+    """A small count as a word, for prose. Anything larger stays a numeral."""
+    return _SMALL_NUMBERS[n] if 0 <= n < len(_SMALL_NUMBERS) else f"{n:,}"
+
 
 class YTDAnalyzer:
     """Analyze year-to-date CVE growth patterns."""
@@ -644,38 +669,71 @@ class YTDAnalyzer:
                 return name
         return None
 
-    def _concentration_line(self, monthly_report: dict, month_total: int) -> str:
-        """Disclose a batch that is driving the month's headline.
+    def _concentration_line(
+        self, monthly_report: dict, month_total: int, month_name: str = "the month"
+    ) -> str:
+        """Disclose how top-heavy the month is before a skeptic points it out.
 
-        A quarterly release from one vendor lands as one source dominating one
-        day. That is a batch, not a trend, and a reader who spots it unaided will
-        discount the whole release, so it is stated first. Deliberately keyed on
-        the biggest *day*, not the biggest publisher over the month: the largest
-        publisher is usually just the most prolific one, and naming it here would
-        pin a spike on whoever happens to publish continuously.
+        Two clauses, each optional. The busiest assigners' share says how much
+        of the month is a handful of publishers. The busiest day discloses a
+        batch: a scheduled release from one vendor lands as one source
+        dominating one day, which is a batch, not a trend, and a reader who
+        spots it unaided will discount the whole release. That clause is keyed
+        on the biggest *day*, not the biggest publisher over the month: the
+        largest publisher is usually just the most prolific one, and naming it
+        here would pin a spike on whoever happens to publish continuously.
         """
-        daily = (monthly_report or {}).get("daily") or {}
+        if not month_total:
+            return ""
+        report = monthly_report or {}
+
+        assigners = ""
+        top = (report.get("cna") or {}).get("top_cnas") or {}
+        counts = list(top.values()) if isinstance(top, dict) else [c for _, c in top]
+        if len(counts) >= TOP_ASSIGNERS:
+            supplied = int(sum(counts[:TOP_ASSIGNERS]))
+            assigners = (
+                f"the {_spell(TOP_ASSIGNERS)} busiest assigners supplied "
+                f"{supplied:,} of {month_name}'s CVEs, "
+                f"{supplied / month_total * 100:.1f}%"
+            )
+
+        batch = self._batch_clause(report, month_total, month_name, bool(assigners))
+
+        if assigners and batch:
+            return (
+                f" Some of that is who is publishing rather than what is "
+                f"breaking: {assigners}, and {batch}."
+            )
+        if assigners:
+            return f" {assigners[0].upper()}{assigners[1:]}."
+        if batch:
+            return f" {batch}."
+        return ""
+
+    def _batch_clause(
+        self, report: dict, month_total: int, month_name: str, have_assigners: bool
+    ) -> str:
+        """The busiest day, when it is a big enough share of the month to be a batch."""
+        daily = report.get("daily") or {}
         count = daily.get("busiest_day_count")
         busiest = daily.get("busiest_day")
-        if not (count and busiest and month_total):
+        if not (count and busiest) or count / month_total < CONCENTRATION_THRESHOLD:
             return ""
-        if count / month_total < CONCENTRATION_THRESHOLD:
-            return ""
-
         try:
             day = datetime.fromisoformat(str(busiest))
             label = f"{day.strftime('%B')} {day.day}"
         except ValueError:
             label = str(busiest)
-
+        # Standing alone the clause has to say what the count is a share of;
+        # after the assigners' clause that is already established.
+        of_what = "" if have_assigners else f" of {month_name}'s CVEs"
+        batch = f"{label} alone carried {int(count):,}{of_what}"
         source_count = daily.get("busiest_day_top_source_count")
         name = self._source_name(str(daily.get("busiest_day_top_source") or ""))
         if name and source_count and source_count / count >= 0.5:
-            return (
-                f" {label} alone carried {int(count):,} of them, "
-                f"{int(source_count):,} of those from {name}."
-            )
-        return f" {label} alone carried {int(count):,} of them."
+            batch += f", {int(source_count):,} of those from {name}"
+        return batch
 
     def get_summary_text(
         self, analysis: dict, monthly_report: Optional[dict] = None
@@ -701,7 +759,6 @@ class YTDAnalyzer:
         month_pct = f"{stats['month_percent']:+.1f}%"
         ytd_total = f"{stats['current_ytd_total']:,}"
         ytd_pct = f"{stats['yoy_percent']:+.1f}%"
-        ytd_diff = f"{stats['yoy_growth']:+,}"
         avg_per_day = f"{stats['avg_cves_per_day']:.0f}"
 
         complete = self._month_is_complete(analysis)
@@ -722,13 +779,16 @@ class YTDAnalyzer:
             )
 
         claim, question = self._choose_copy(stats, complete)
+        concentration = self._concentration_line(
+            monthly_report or {}, stats["current_month_count"], current_month_name
+        )
 
         return (
             f"{claim}\n\n"
             f"{month_line}\n\n"
             f"That puts {year} at {ytd_total} CVEs year to date, {ytd_pct} year over "
             f"year, and {avg_per_day} CVEs published a day so far this year."
-            f"{self._concentration_line(monthly_report or {}, stats['current_month_count'])}"
+            f"{concentration}"
             f"{self._milestone_line(stats, year, previous_year, current_month_name)}\n\n"
             f"{question}\n\n"
             f"Source: NVD, excluding rejected CVEs"
@@ -750,14 +810,16 @@ class YTDAnalyzer:
         if stats.get("passed_previous_year_total"):
             surplus = stats["current_ytd_total"] - previous_full
             months_left = 12 - stats["current_month"]
-            tail = (
-                f" with {months_left} months still to run"
-                if months_left > 0
-                else " before the year is out"
-            )
+            if months_left == 1:
+                tail = " with one month left to count"
+            elif months_left > 1:
+                tail = f" with {_spell(months_left)} months left to count"
+            else:
+                tail = " before the year is out"
+            # "ahead", not "+24,143 past it": the sign is carried by the word.
             return (
                 f" {year} has now published more CVEs than the whole of "
-                f"{previous_year} ({previous_full:,}), and is {surplus:+,} past it"
+                f"{previous_year} ({previous_full:,}), and is {surplus:,} ahead"
                 f"{tail}."
             )
 
@@ -783,6 +845,45 @@ class YTDAnalyzer:
                 f"{remaining:,} CVEs, around {projected}."
             )
         return ""
+
+    @staticmethod
+    def _cvss_line(cvss_data: dict, month_total: int) -> str:
+        """The median, and what it covers.
+
+        The median is a v3.x figure, and a growing share of the month carries
+        only a v4.0 score or none at all, so say what the median covers rather
+        than letting it stand for the whole month.
+        """
+        median = cvss_data.get("median")
+        if not median:
+            return ""
+        p75 = cvss_data.get("percentile_75", "")
+        scored_v3 = cvss_data.get("scored_cves_v3")
+        if not scored_v3:
+            line = f"\n\nMedian CVSS came in at {median}"
+            if p75:
+                line += f", with the 75th percentile at {p75}"
+            return line + "."
+
+        line = f"\n\nMedian CVSS v3.x was {median}"
+        if p75:
+            line += f" with the 75th percentile at {p75}"
+        line += (
+            f", across the {int(scored_v3):,} of {month_total:,} CVEs "
+            f"carrying a v3.x score."
+        )
+        v4_only = int(cvss_data.get("scored_v4_only") or 0)
+        unscored = int(cvss_data.get("unscored_cves") or 0)
+        if v4_only and unscored:
+            line += (
+                f" Another {v4_only:,} carry only a v4.0 score and "
+                f"{unscored:,} carry none."
+            )
+        elif v4_only:
+            line += f" Another {v4_only:,} carry only a v4.0 score."
+        elif unscored:
+            line += f" Another {unscored:,} carry no score."
+        return line
 
     def get_enriched_text(self, analysis: dict, monthly_report: dict) -> str:
         """
@@ -846,16 +947,9 @@ class YTDAnalyzer:
             "NVD-CWE-Other": "Other",
         }
 
-        # Build CVSS line
-        cvss_data = monthly_report.get("cvss", {})
-        cvss_line = ""
-        if cvss_data.get("median"):
-            median = cvss_data["median"]
-            p75 = cvss_data.get("percentile_75", "")
-            cvss_line = f"\n\nMedian CVSS came in at {median}"
-            if p75:
-                cvss_line += f", with the 75th percentile at {p75}"
-            cvss_line += "."
+        cvss_line = self._cvss_line(
+            monthly_report.get("cvss", {}), stats["current_month_count"]
+        )
 
         # Build top CWEs
         cwe_data = monthly_report.get("cwe", {})
@@ -863,7 +957,19 @@ class YTDAnalyzer:
         cwe_lines = ""
         if top_cwes:
             items = list(top_cwes.items())[:5]
-            cwe_lines = "\n\nMost frequently assigned weaknesses:\n"
+            assignments = cwe_data.get("total_assignments")
+            with_a_cwe = cwe_data.get("cves_with_a_cwe")
+            if cwe_data.get("counts_all_weaknesses") and assignments and with_a_cwe:
+                # The counts are assignments, not CVEs, and the two differ
+                # because a CVE can carry several weaknesses. Say so, or the
+                # column looks like it should sum to the month.
+                cwe_lines = (
+                    f"\n\nMost frequently assigned weaknesses, {int(assignments):,} "
+                    f"assignments across {int(with_a_cwe):,} CVEs since a CVE can "
+                    f"carry more than one:\n"
+                )
+            else:
+                cwe_lines = "\n\nMost frequently assigned weaknesses:\n"
             for cwe_id, count in items:
                 # Unmapped ids render once, not as "CWE-284 (CWE-284)".
                 name = cwe_names.get(cwe_id)
@@ -887,11 +993,19 @@ class YTDAnalyzer:
 
         claim, question = self._choose_copy(stats, complete)
 
+        # The same disclosure the short post carries, as its own paragraph so
+        # the enriched post is not the only one of the two a skeptic can trust.
+        concentration = self._concentration_line(
+            monthly_report, stats["current_month_count"], current_month_name
+        ).strip()
+        concentration_para = f"\n\n{concentration}" if concentration else ""
+
         return (
             f"{claim}\n\n"
             f"{month_clause} "
             f"{year} at {ytd_total} year to date ({ytd_pct} year over year) and "
             f"{avg_day} CVEs published a day so far this year."
+            f"{concentration_para}"
             f"{cvss_line}"
             f"{cwe_lines}"
             f"\n\n{question}"

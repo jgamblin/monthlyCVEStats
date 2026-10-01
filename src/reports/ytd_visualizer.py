@@ -200,7 +200,7 @@ class YTDVisualizer:
             ax.plot(
                 days,
                 previous_values,
-                linewidth=1.8,
+                linewidth=2.2,
                 color=colors["comparison"],
                 label=str(previous_year),
                 linestyle="--",
@@ -237,7 +237,7 @@ class YTDVisualizer:
                 previous_values,
                 marker="o",
                 markersize=5,
-                linewidth=1.8,
+                linewidth=2.2,
                 color=colors["comparison"],
                 label=str(previous_year),
                 linestyle="--",
@@ -373,7 +373,11 @@ class YTDVisualizer:
             last_day - max(days) * 0.015,
             label_y,
             f"{diff:+,}\n({diff_pct:+.1f}%)",
-            fontfamily=style.MONO_FONT,
+            # Body, not mono: a monospace cell around the thousands comma and the
+            # decimal point renders this as "+26 , 862", which reads as a broken
+            # glyph on the most-read annotation of the chart. House style reserves
+            # mono for the eyebrow, the stamp and CVE ids.
+            fontfamily=style.BODY_FONT,
             fontsize=9.5,
             fontweight="bold",
             color=colors["primary"],
@@ -395,16 +399,14 @@ class YTDVisualizer:
         through_month: int,
     ) -> list:
         """A one-line summary of the busiest, quietest, and fastest-growing month."""
-        if not monthly_data:
+        figures = self._month_extreme_figures(
+            monthly_data, previous_monthly_data, through_month
+        )
+        if not figures:
             return []
 
-        counts = {m: monthly_data.get(m, 0) for m in range(1, through_month + 1)}
-        non_zero = {m: c for m, c in counts.items() if c > 0}
-        if not non_zero:
-            return []
-
-        peak = max(non_zero, key=lambda month: non_zero[month])
-        low = min(non_zero, key=lambda month: non_zero[month])
+        peak, peak_count = figures["busiest"]
+        low, low_count = figures["quietest"]
         # "completed" is load-bearing: the ranking deliberately skips a month
         # still in progress, so the label says so rather than leaving a reader to
         # wonder why the highest bar on the chart is not named here.
@@ -412,10 +414,46 @@ class YTDVisualizer:
         # progress is absent from the ranking, and repeating it on every item
         # pushed this line off the edge of the narrower canvases.
         parts = [
-            f"Busiest completed month: {calendar.month_abbr[peak]} "
-            f"({non_zero[peak]:,})",
-            f"Quietest: {calendar.month_abbr[low]} ({non_zero[low]:,})",
+            f"Busiest completed month: {calendar.month_abbr[peak]} ({peak_count:,})",
+            f"Quietest: {calendar.month_abbr[low]} ({low_count:,})",
         ]
+        if figures.get("fastest"):
+            best_month, best_growth = figures["fastest"]
+            # Name the comparison, so the number is not stranded next to the
+            # year-to-date growth figure looking like a rival for it.
+            parts.append(
+                f"Fastest YoY: {calendar.month_abbr[best_month]} "
+                f"{best_growth:+.1f}% on last year"
+            )
+
+        return parts
+
+    @staticmethod
+    def _month_extreme_figures(
+        monthly_data: Optional[dict],
+        previous_monthly_data: Optional[dict],
+        through_month: int,
+    ) -> Optional[dict]:
+        """The figures behind the footer, for the alt text to phrase its own way.
+
+        The footer abbreviates and separates with middots to fit a narrow
+        canvas. Alt text has neither constraint and a screen reader has no use
+        for "Sep (14,427)", so both are built from this rather than the alt text
+        parsing the footer's labels.
+
+        Returns {"busiest": (month, count), "quietest": (month, count),
+        "fastest": (month, growth_percent) or None}, or None with no data.
+        """
+        if not monthly_data:
+            return None
+
+        counts = {m: monthly_data.get(m, 0) for m in range(1, through_month + 1)}
+        non_zero = {m: c for m, c in counts.items() if c > 0}
+        if not non_zero:
+            return None
+
+        peak = max(non_zero, key=lambda month: non_zero[month])
+        low = min(non_zero, key=lambda month: non_zero[month])
 
         previous = previous_monthly_data or {}
         best_month, best_growth = None, float("-inf")
@@ -425,15 +463,12 @@ class YTDVisualizer:
                 growth = (counts[month] - prior) / prior * 100
                 if growth > best_growth:
                     best_growth, best_month = growth, month
-        if best_month:
-            # Name the comparison, so the number is not stranded next to the
-            # year-to-date growth figure looking like a rival for it.
-            parts.append(
-                f"Fastest YoY: {calendar.month_abbr[best_month]} "
-                f"{best_growth:+.1f}% on last year"
-            )
 
-        return parts
+        return {
+            "busiest": (peak, non_zero[peak]),
+            "quietest": (low, non_zero[low]),
+            "fastest": (best_month, best_growth) if best_month else None,
+        }
 
     # -- backwards-compatible entry points ----------------------------------
 

@@ -45,11 +45,16 @@ def growth_chart(
     stats: dict,
     current_cumulative: dict,
     previous_cumulative: dict,
-    extremes: Optional[list] = None,
+    extremes: Optional[dict] = None,
+    month_days: Optional[int] = None,
 ) -> str:
     """Alt text for the cumulative growth chart, in any ratio or theme.
 
     All six variants plot the same data, so they share one description.
+
+    ``extremes`` is the figures dict from ``YTDVisualizer._month_extreme_figures``
+    and ``month_days`` the number of days the reporting month's count covers,
+    so its daily rate can sit beside the year's.
     """
     previous_year = current_year - 1
     month_name = calendar.month_name[through_month]
@@ -77,12 +82,36 @@ def growth_chart(
         f"{current_year} ends {month_name} at {ytd:,} cumulative CVEs against "
         f"{previous_ytd:,} in {previous_year}, a gap of {gap:,} or "
         f"{abs(percent):.1f} percent.",
-        f"Daily average {per_day:.0f} CVEs.",
     ]
+
+    # The chart's stat tile gives the year's rate; the month's own rate is the
+    # figure a reader takes away, so the alt text carries both.
+    month_count = stats.get("current_month_count")
+    rate = f"The daily average is {per_day:.0f} CVEs across the year to date"
+    if month_count and month_days:
+        rate += f", and {month_count / month_days:.0f} a day in {month_name}"
+    parts.append(rate + ".")
+
     if extremes:
-        # The chart separates these with a middot, which a screen reader reads
-        # as nothing at all. Sentences instead.
-        parts.append(". ".join(part.strip() for part in extremes) + ".")
+        # The chart's footer abbreviates ("Sep (14,427)") and separates with a
+        # middot, which a screen reader reads as nothing at all. Sentences,
+        # with the months spelled out.
+        busiest, busiest_count = extremes["busiest"]
+        quietest, quietest_count = extremes["quietest"]
+        parts.append(
+            f"{calendar.month_name[busiest]} was the busiest completed month "
+            f"with {busiest_count:,} and {calendar.month_name[quietest]} the "
+            f"quietest with {quietest_count:,}."
+        )
+        if extremes.get("fastest"):
+            fastest, growth = extremes["fastest"]
+            also = " also" if fastest == busiest else ""
+            direction = "up" if growth >= 0 else "down"
+            parts.append(
+                f"{calendar.month_name[fastest]}{also} had the largest "
+                f"year-over-year change, {direction} {abs(growth):.1f} percent on "
+                f"{calendar.month_name[fastest]} {previous_year}."
+            )
     parts.append(SOURCE)
     return " ".join(parts)
 

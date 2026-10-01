@@ -260,7 +260,7 @@ def generate_ytd_report() -> None:
 
     # Alt text, written from the same figures the charts are drawn from so the
     # description cannot drift from the picture.
-    end_year, end_day, _ = visualizer._period_end(through_month)
+    end_year, end_day, month_complete = visualizer._period_end(through_month)
     through_date = f"{calendar.month_name[through_month]} {end_day}, {end_year}"
     stats = analysis["statistics"]
     growth_alt = alt_text.growth_chart(
@@ -270,11 +270,17 @@ def generate_ytd_report() -> None:
         stats,
         analysis["current_cumulative"],
         analysis["previous_cumulative"],
-        extremes=visualizer._month_extremes(
+        extremes=visualizer._month_extreme_figures(
             analysis["current_year_data"],
             analysis["previous_year_data"],
-            through_month,
+            # The same cut-off the chart footer ranks by. An in-progress month
+            # is not comparable to a whole one, and alt text that named it the
+            # busiest would contradict the picture it is describing.
+            through_month if month_complete else through_month - 1,
         ),
+        # The days the month's count covers: the whole month once it has
+        # closed, or the days elapsed so far on a mid-month run.
+        month_days=end_day,
     )
     yoy_alt = alt_text.yoy_chart(
         analysis["current_year"],

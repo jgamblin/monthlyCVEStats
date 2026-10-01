@@ -96,6 +96,12 @@ LIGHT_COLORS = {
     "grid": "#dfe2e5",  # hairline grid / axis line
     "soft": "#f6f7f9",  # near-white panel
     "alert": "#dc2626",  # alert red — the highlighted (current year) series
+    # 2.68:1 on white, below WCAG 1.4.11's 3:1. Deliberate, and as high as it
+    # goes: holding 1.8:1 against the alert red (see
+    # test_the_two_series_are_distinguishable, which guards grayscale and
+    # colour-blind separation) caps white contrast at exactly this value. A
+    # lighter token loses the series pair; a darker one outranks the
+    # highlighted series. Legibility is bought with linewidth instead.
     "comparison": "#8da0b5",  # the prior-year series, 1.8:1 against alert
     "background": "#ffffff",
 }
