@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-10-01T16:58:13.826927",
+  "data": {
+    "Summary": {
+      "Month": "September",
+      "Year": 2026,
+      "Total CVEs": 14943
+    },
+    "cvss": {
+      "scored_cves_v3": 12231,
+      "scored_v4_only": 1266,
+      "unscored_cves": 1446,
+      "mean": 6.98,
+      "median": 7.3,
+      "std_dev": 1.7,
+      "min": 0.0,
+      "max": 10.0,
+      "percentile_25": 5.5,
+      "percentile_75": 8.1,
+      "severity_counts": {
+        "None": 2,
+        "Low": 571,
+        "Medium": 4685,
+        "High": 5665,
+        "Critical": 1308
+      },
+      "scored_share_percent": 90.3
+    },
+    "cna": {
+      "top_cnas": {
+        "416baaa9-dc9f-4396-8d5f-8c081fb06d67": 2115,
+        "disclosure@vulncheck.com": 1590,
+        "security-advisories@github.com": 1443,
+        "secure@microsoft.com": 1000,
+        "cna@vuldb.com": 915,
+        "secalert_us@oracle.com": 634,
+        "contact@wpscan.com": 551,
+        "cve@mitre.org": 519,
+        "chrome-cve-admin@google.com": 467,
+        "psirt@us.ibm.com": 402
+      },
+      "total_unique_cnas": 233
+    },
+    "cwe": {
+      "top_cwes": {
+        "CWE-79": 1119,
+        "CWE-862": 797,
+        "CWE-284": 610,
+        "CWE-89": 494,
+        "CWE-416": 469,
+        "CWE-863": 447,
+        "CWE-122": 443,
+        "CWE-22": 424,
+        "CWE-125": 415,
+        "CWE-200": 393
+      },
+      "total_unique_cwes": 393,
+      "total_assignments": 14718,
+      "cves_with_a_cwe": 12754,
+      "counts_all_weaknesses": true,
+      "records_tagged_no_info": 10,
+      "cves_without_a_cwe": 2189
+    },
+    "daily": {
+      "days_with_cves": 30,
+      "calendar_days_covered": 30,
+      "avg_cves_per_day": 498.1,
+      "busiest_day": "2026-09-08",
+      "busiest_day_count": 1559,
+      "quietest_day": "2026-09-06",
+      "quietest_day_count": 90,
+      "busiest_day_top_source": "secure@microsoft.com",
+      "busiest_day_top_source_count": 965
+    },
+    "monthly_trend": {
+      "monthly_counts": {
+        "2026-01": 4302,
+        "2026-02": 4616,
+        "2026-03": 6234,
+        "2026-04": 5810,
+        "2026-05": 6937,
+        "2026-06": 7942,
+        "2026-07": 9770,
+        "2026-08": 12258,
+        "2026-09": 14943
+      },
+      "avg_monthly": 8090.2,
+      "busiest_month": "2026-09",
+      "busiest_month_count": 14943,
+      "latest_month": "2026-09",
+      "latest_month_count": 14943,
+      "prior_month_count": 12258,
+      "month_over_month_percent": 21.9
+    },
+    "growth": {
+      "period": "Monthly",
+      "months_included": 9,
+      "changes_averaged": 8,
+      "avg_growth_percent": 17.5,
+      "fastest_growth_period": "2026-03",
+      "fastest_growth_percent": 35.1,
+      "slowest_growth_period": "2026-04",
+      "slowest_growth_percent": -6.8
+    }
+  }
+}

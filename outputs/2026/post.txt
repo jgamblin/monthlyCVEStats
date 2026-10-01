@@ -1,9 +1,9 @@
-Last year's record is no longer a ceiling, it is a midpoint.
+The annual CVE record now falls before most teams finish a roadmap.
 
-August 2026 closed at 12,291 published CVEs against 3,628 in August 2025, +238.8%.
+September 2026 closed at 14,943 published CVEs against 4,321 in September 2025, +245.8%.
 
-That puts 2026 at 57,908 CVEs year to date, +86.5% year over year, and 238 CVEs published a day so far this year. August 18 alone carried 1,407 of them, 889 of those from Oracle. 2026 has now published more CVEs than the whole of 2025 (48,154), and is +9,754 past it with 4 months still to run.
+That puts 2026 at 72,812 CVEs year to date, +105.9% year over year, and 267 CVEs published a day so far this year. Some of that is who is publishing rather than what is breaking: the five busiest assigners supplied 7,063 of September's CVEs, 47.3%, and September 8 alone carried 1,559, 965 of those from Microsoft. 2026 has now published more CVEs than the whole of 2025 (48,152), and is 24,660 ahead with three months left to count.
 
-Are you planning next year against this year's numbers, or last year's?
+How far ahead can you plan when the baseline moves every year?
 
 Source: NVD, excluding rejected CVEs
