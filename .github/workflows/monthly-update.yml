@@ -16,6 +16,11 @@ permissions:
 jobs:
   monthly-update:
     runs-on: ubuntu-latest
+    # The whole job takes about five minutes. A download that outlives the
+    # feed file it is streaming can hang without erroring, and on 2026-10-01
+    # one did for 40 minutes against GitHub's six-hour default. Failing here
+    # lets the failure-report step fire while someone can still act on it.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
