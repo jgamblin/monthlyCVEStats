@@ -1,27 +1,27 @@
 {
-  "generated_at": "2026-10-01T16:59:02.778379",
+  "generated_at": "2026-11-01T16:40:24.312625",
   "year": 2026,
   "statistics": {
-    "current_month": 9,
-    "current_ytd_total": 72812,
-    "previous_ytd_total": 35366,
-    "yoy_growth": 37446,
-    "yoy_percent": 105.88135497370357,
-    "current_month_count": 14943,
-    "previous_month_count": 4321,
-    "month_growth": 10622,
-    "month_percent": 245.82272622078222,
-    "avg_cves_per_day": 266.7106227106227,
-    "all_time_total": 381691,
+    "current_month": 10,
+    "current_ytd_total": 89859,
+    "previous_ytd_total": 39639,
+    "yoy_growth": 50220,
+    "yoy_percent": 126.69340800726556,
+    "current_month_count": 17060,
+    "previous_month_count": 4273,
+    "month_growth": 12787,
+    "month_percent": 299.2511116311725,
+    "avg_cves_per_day": 295.5888157894737,
+    "all_time_total": 398737,
     "first_year_on_record": 1988,
     "prior_year_totals": {
       "2021": 20149,
       "2022": 25073,
       "2023": 28816,
       "2024": 39953,
-      "2025": 48152
+      "2025": 48151
     },
-    "previous_year_full_total": 48152,
+    "previous_year_full_total": 48151,
     "passed_previous_year_total": true
   }
 }

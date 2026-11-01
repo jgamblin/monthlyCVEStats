@@ -1,19 +1,19 @@
-The annual CVE record now falls before most teams finish a roadmap.
+Beating last year's total stopped being news once it happened in summer.
 
-September closed at 14,943 published CVEs, +245.8% against September 2025, which puts 2026 at 72,812 year to date (+105.9% year over year) and 267 CVEs published a day so far this year.
+October closed at 17,060 published CVEs, +299.3% against October 2025, which puts 2026 at 89,859 year to date (+126.7% year over year) and 296 CVEs published a day so far this year.
 
-Some of that is who is publishing rather than what is breaking: the five busiest assigners supplied 7,063 of September's CVEs, 47.3%, and September 8 alone carried 1,559, 965 of those from Microsoft.
+Some of that is who is publishing rather than what is breaking: the five busiest assigners supplied 7,638 of October's CVEs, 44.8%, and October 13 alone carried 2,303, 1,407 of those from Microsoft.
 
-Median CVSS v3.x was 7.3 with the 75th percentile at 8.1, across the 12,231 of 14,943 CVEs carrying a v3.x score. Another 1,266 carry only a v4.0 score and 1,446 carry none.
+Median CVSS v3.x was 7.0 with the 75th percentile at 7.9, across the 14,115 of 17,060 CVEs carrying a v3.x score. Another 1,374 carry only a v4.0 score and 1,571 carry none.
 
-Most frequently assigned weaknesses, 14,718 assignments across 12,754 CVEs since a CVE can carry more than one:
-  XSS (CWE-79): 1,119
-  Missing Authorization (CWE-862): 797
-  Improper Access Control (CWE-284): 610
-  SQL Injection (CWE-89): 494
-  Use After Free (CWE-416): 469
+Most frequently assigned weaknesses, 17,298 assignments across 15,277 CVEs since a CVE can carry more than one:
+  XSS (CWE-79): 1,407
+  Missing Authorization (CWE-862): 1,125
+  Improper Access Control (CWE-284): 716
+  Use After Free (CWE-416): 672
+  Out-of-bounds Read (CWE-125): 560
 
-How far ahead can you plan when the baseline moves every year?
+What breaks first when a record year becomes an average one?
 
 Source: NVD, excluding rejected CVEs
 
