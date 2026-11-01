@@ -177,9 +177,12 @@ class YTDAnalyzer:
         counts, daily-of-year counts, per-year totals, and the all-time total are
         all derived from that. The file is about 1.6 GB, so the three separate
         passes this replaces cost three times as much for the same data.
+        Assigners are counted per month in the same pass, so the concentration
+        line can compare a month against the same month a year earlier.
 
         Returns:
-            {"all_time": int, "yearly": Counter, "by_day": {year: Counter}}
+            {"all_time": int, "yearly": Counter, "by_day": {year: Counter},
+             "by_source": {(year, month): Counter}}
         """
         if self._scan_cache is not None:
             return self._scan_cache
@@ -187,12 +190,18 @@ class YTDAnalyzer:
         all_time = 0
         yearly: Counter = Counter()
         by_day: dict = {}
+        by_source: dict = {}
 
         try:
             with open(self.data_file, "r") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, IOError):
-            self._scan_cache = {"all_time": 0, "yearly": Counter(), "by_day": {}}
+            self._scan_cache = {
+                "all_time": 0,
+                "yearly": Counter(),
+                "by_day": {},
+                "by_source": {},
+            }
             return self._scan_cache
 
         cves = data if isinstance(data, list) else data.get("CVE_Items", [])
@@ -219,6 +228,9 @@ class YTDAnalyzer:
                 by_day.setdefault(cve_date.year, Counter())[
                     (cve_date.month, cve_date.day)
                 ] += 1
+                by_source.setdefault((cve_date.year, cve_date.month), Counter())[
+                    cve_data.get("sourceIdentifier") or "unknown"
+                ] += 1
             except (KeyError, ValueError, AttributeError):
                 continue
 
@@ -226,6 +238,7 @@ class YTDAnalyzer:
             "all_time": all_time,
             "yearly": yearly,
             "by_day": by_day,
+            "by_source": by_source,
         }
         return self._scan_cache
 
@@ -264,6 +277,15 @@ class YTDAnalyzer:
         # Load daily data for chart plotting
         current_daily, previous_daily = self._load_daily_data()
 
+        # Per-assigner counts for the reporting month and the same month a year
+        # earlier, so the concentration line can say which way the share moved.
+        by_source = self._scan()["by_source"]
+        month = stats["current_month"]
+        assigners = {
+            "current": dict(by_source.get((self.current_year, month), {})),
+            "previous": dict(by_source.get((self.current_year - 1, month), {})),
+        }
+
         return {
             "current_year": self.current_year,
             "previous_year": self.current_year - 1,
@@ -274,6 +296,7 @@ class YTDAnalyzer:
             "current_daily_cumulative": current_daily,
             "previous_daily_cumulative": previous_daily,
             "statistics": stats,
+            "assigners": assigners,
         }
 
     def _load_year_data(
@@ -670,46 +693,101 @@ class YTDAnalyzer:
         return None
 
     def _concentration_line(
-        self, monthly_report: dict, month_total: int, month_name: str = "the month"
+        self, monthly_report: dict, analysis: dict, complete: bool = True
     ) -> str:
         """Disclose how top-heavy the month is before a skeptic points it out.
 
-        Two clauses, each optional. The busiest assigners' share says how much
-        of the month is a handful of publishers. The busiest day discloses a
-        batch: a scheduled release from one vendor lands as one source
-        dominating one day, which is a batch, not a trend, and a reader who
-        spots it unaided will discount the whole release. That clause is keyed
-        on the biggest *day*, not the biggest publisher over the month: the
-        largest publisher is usually just the most prolific one, and naming it
-        here would pin a spike on whoever happens to publish continuously.
+        Two sentences, each optional. The busiest assigners' share says how much
+        of the month is a handful of publishers, set against the same month a
+        year earlier: a share read on its own cannot say whether a few assigners
+        drive the growth, and October 2026 at 44.8% read as concentration until
+        October 2025 turned out to be 51.0%. The busiest day discloses a batch:
+        a scheduled release from one vendor lands as one source dominating one
+        day, which is a batch, not a trend, and a reader who spots it unaided
+        will discount the whole release. That sentence is keyed on the biggest
+        *day*, not the biggest publisher over the month: the largest publisher
+        is usually just the most prolific one, and naming it here would pin a
+        spike on whoever happens to publish continuously.
         """
+        stats = analysis["statistics"]
+        month_total = stats["current_month_count"]
         if not month_total:
             return ""
+        month_name = datetime(
+            analysis["current_year"], stats["current_month"], 1
+        ).strftime("%B")
         report = monthly_report or {}
 
-        assigners = ""
-        top = (report.get("cna") or {}).get("top_cnas") or {}
-        counts = list(top.values()) if isinstance(top, dict) else [c for _, c in top]
-        if len(counts) >= TOP_ASSIGNERS:
-            supplied = int(sum(counts[:TOP_ASSIGNERS]))
-            assigners = (
-                f"the {_spell(TOP_ASSIGNERS)} busiest assigners supplied "
-                f"{supplied:,} of {month_name}'s CVEs, "
-                f"{supplied / month_total * 100:.1f}%"
-            )
-
+        assigners = self._assigner_sentence(
+            report,
+            analysis.get("assigners") or {},
+            month_total,
+            month_name,
+            analysis["previous_year"],
+            complete,
+        )
         batch = self._batch_clause(report, month_total, month_name, bool(assigners))
+        return "".join(f" {part}" for part in (assigners, batch) if part)
 
-        if assigners and batch:
-            return (
-                f" Some of that is who is publishing rather than what is "
-                f"breaking: {assigners}, and {batch}."
+    @staticmethod
+    def _assigner_sentence(
+        report: dict,
+        assigners: dict,
+        month_total: int,
+        month_name: str,
+        previous_year: int,
+        complete: bool,
+    ) -> str:
+        """The busiest assigners' share, and which way it moved in a year."""
+        current = assigners.get("current") or {}
+        previous = assigners.get("previous") or {}
+        if current:
+            counts = sorted(current.values(), reverse=True)
+        else:
+            top = (report.get("cna") or {}).get("top_cnas") or {}
+            counts = (
+                list(top.values()) if isinstance(top, dict) else [c for _, c in top]
             )
-        if assigners:
-            return f" {assigners[0].upper()}{assigners[1:]}."
-        if batch:
-            return f" {batch}."
-        return ""
+        if len(counts) < TOP_ASSIGNERS:
+            return ""
+
+        supplied = int(sum(counts[:TOP_ASSIGNERS]))
+        share = supplied / month_total * 100
+        sentence = (
+            f"The {_spell(TOP_ASSIGNERS)} busiest assigners supplied {supplied:,} "
+            f"of {month_name}'s CVEs, {share:.1f}%"
+        )
+
+        # A part-month against the prior year's whole month would make the
+        # share look like it moved when only the window did.
+        previous_total = sum(previous.values())
+        if not (complete and current and len(previous) >= TOP_ASSIGNERS):
+            return f"{sentence}."
+
+        previous_share = (
+            sum(sorted(previous.values(), reverse=True)[:TOP_ASSIGNERS])
+            / previous_total
+            * 100
+        )
+        if round(share, 1) < round(previous_share, 1):
+            direction = f"down from {previous_share:.1f}%"
+        elif round(share, 1) > round(previous_share, 1):
+            direction = f"up from {previous_share:.1f}%"
+        else:
+            direction = "the same share as"
+        sentence += f", {direction} in {month_name} {previous_year}."
+
+        growth = month_total - previous_total
+        if growth > 0:
+            busiest = sorted(current, key=current.get, reverse=True)[:TOP_ASSIGNERS]
+            added = sum(current[k] - previous.get(k, 0) for k in busiest)
+            grew = sum(1 for k, n in current.items() if n > previous.get(k, 0))
+            sentence += (
+                f" Those {_spell(TOP_ASSIGNERS)} added {added:,} of the {growth:,} "
+                f"extra CVEs, and {grew:,} of the {len(current):,} assigners active "
+                f"in {month_name} published more than a year earlier."
+            )
+        return sentence
 
     def _batch_clause(
         self, report: dict, month_total: int, month_name: str, have_assigners: bool
@@ -720,20 +798,29 @@ class YTDAnalyzer:
         busiest = daily.get("busiest_day")
         if not (count and busiest) or count / month_total < CONCENTRATION_THRESHOLD:
             return ""
+        # Standing alone the sentence has to say what the count is a share of;
+        # after the assigners' sentence that is already established.
+        of_what = "" if have_assigners else f" of {month_name}'s CVEs"
         try:
             day = datetime.fromisoformat(str(busiest))
-            label = f"{day.strftime('%B')} {day.day}"
         except ValueError:
-            label = str(busiest)
-        # Standing alone the clause has to say what the count is a share of;
-        # after the assigners' clause that is already established.
-        of_what = "" if have_assigners else f" of {month_name}'s CVEs"
-        batch = f"{label} alone carried {int(count):,}{of_what}"
+            batch = f"{busiest} alone carried {int(count):,}{of_what}"
+        else:
+            label = f"{day.strftime('%B')} {day.day}"
+            # The second Tuesday is a scheduled release day across vendors, and
+            # naming it tells the reader the spike is a calendar, not an event.
+            if day.weekday() == 1 and 8 <= day.day <= 14:
+                batch = (
+                    f"{label}, Patch Tuesday, carried {int(count):,}{of_what} "
+                    f"on its own"
+                )
+            else:
+                batch = f"{label} alone carried {int(count):,}{of_what}"
         source_count = daily.get("busiest_day_top_source_count")
         name = self._source_name(str(daily.get("busiest_day_top_source") or ""))
         if name and source_count and source_count / count >= 0.5:
             batch += f", {int(source_count):,} of those from {name}"
-        return batch
+        return f"{batch}."
 
     def get_summary_text(
         self, analysis: dict, monthly_report: Optional[dict] = None
@@ -780,7 +867,7 @@ class YTDAnalyzer:
 
         claim, question = self._choose_copy(stats, complete)
         concentration = self._concentration_line(
-            monthly_report or {}, stats["current_month_count"], current_month_name
+            monthly_report or {}, analysis, complete
         )
 
         return (
@@ -996,7 +1083,7 @@ class YTDAnalyzer:
         # The same disclosure the short post carries, as its own paragraph so
         # the enriched post is not the only one of the two a skeptic can trust.
         concentration = self._concentration_line(
-            monthly_report, stats["current_month_count"], current_month_name
+            monthly_report, analysis, complete
         ).strip()
         concentration_para = f"\n\n{concentration}" if concentration else ""
 

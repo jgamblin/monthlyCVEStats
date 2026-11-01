@@ -632,18 +632,79 @@ def test_enriched_post_explains_assignment_counts(analyzer):
     ) in text
 
 
+def _september_assigners():
+    """Per-assigner counts summing to the month totals in _september_analysis()."""
+    return {
+        "current": {
+            "a": 4000, "b": 3000, "c": 2000, "d": 1000, "e": 900,
+            "f": 800, "g": 727, "h": 700, "i": 650, "j": 650,
+        },
+        "previous": {
+            "a": 1000, "b": 800, "c": 600, "d": 500, "e": 400, "f": 521, "k": 500,
+        },
+    }
+
+
 def test_concentration_names_the_assigners_and_the_batch(analyzer):
     """Both posts disclose how top-heavy the month is, in the same words."""
     report = _september_report()
     summary = analyzer.get_summary_text(_september_analysis(), report)
     enriched = analyzer.get_enriched_text(_september_analysis(), report)
     line = (
-        "Some of that is who is publishing rather than what is breaking: the five "
-        "busiest assigners supplied 6,990 of September's CVEs, 48.5%, and "
-        "September 8 alone carried 1,559, 965 of those from Microsoft."
+        "The five busiest assigners supplied 6,990 of September's CVEs, 48.5%. "
+        "September 8, Patch Tuesday, carried 1,559 on its own, 965 of those from "
+        "Microsoft."
     )
     assert line in summary
     assert f"\n\n{line}\n\n" in enriched  # its own paragraph
+
+
+def test_concentration_compares_against_the_same_month_last_year(analyzer):
+    """A share alone cannot say whether a few assigners drive the growth."""
+    payload = _september_analysis()
+    payload["assigners"] = _september_assigners()
+    text = analyzer.get_summary_text(payload, _september_report())
+    assert (
+        "The five busiest assigners supplied 10,900 of September's CVEs, 75.6%, "
+        "down from 79.2% in September 2025. Those five added 7,600 of the 10,106 "
+        "extra CVEs, and 10 of the 10 assigners active in September published "
+        "more than a year earlier."
+    ) in text
+
+
+def test_concentration_says_when_the_share_rose(analyzer):
+    payload = _september_analysis()
+    payload["assigners"] = _september_assigners()
+    payload["assigners"]["previous"] = {f"p{i}": 100 for i in range(10)}
+    text = analyzer.get_summary_text(payload, _september_report())
+    assert "75.6%, up from 50.0% in September 2025." in text
+
+
+def test_concentration_does_not_blame_the_publishers(analyzer):
+    """The share is disclosed, not read as proof that growth is bookkeeping."""
+    payload = _september_analysis()
+    payload["assigners"] = _september_assigners()
+    text = analyzer.get_summary_text(payload, _september_report())
+    assert "who is publishing" not in text
+    assert "what is breaking" not in text
+
+
+def test_part_month_skips_the_year_ago_share(analyzer, monkeypatch):
+    """A part-month share against a whole prior month would move for no reason."""
+    monkeypatch.setattr(analyzer, "_month_is_complete", lambda _: False)
+    payload = _september_analysis()
+    payload["assigners"] = _september_assigners()
+    text = analyzer.get_summary_text(payload, _september_report())
+    assert "supplied 10,900 of September's CVEs, 75.6%." in text
+    assert "in September 2025" not in text.split("75.6%")[1].split(".")[0]
+
+
+def test_batch_off_patch_tuesday_is_not_named(analyzer):
+    report = _september_report()
+    report["daily"]["busiest_day"] = "2026-09-09"
+    text = analyzer.get_summary_text(_september_analysis(), report)
+    assert "September 9 alone carried 1,559, 965 of those from Microsoft." in text
+    assert "Patch Tuesday" not in text
 
 
 def test_concentration_survives_a_missing_section(analyzer):
@@ -652,7 +713,7 @@ def test_concentration_survives_a_missing_section(analyzer):
     del report["cna"]
     text = analyzer.get_summary_text(_september_analysis(), report)
     assert (
-        "September 8 alone carried 1,559 of September's CVEs, 965 of those from Microsoft."
-        in text
+        "September 8, Patch Tuesday, carried 1,559 of September's CVEs on its own, "
+        "965 of those from Microsoft." in text
     )
     assert "busiest assigners" not in text
